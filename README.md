@@ -1,144 +1,215 @@
 # Revit MCP
 
-MCP server in Python plus a Revit add-in that executes C# snippets inside Revit through `ExternalEvent` and Roslyn.
+Revit MCP lets ChatGPT or another MCP client execute focused C# snippets inside Autodesk Revit.
 
-The MCP surface is intentionally one generic tool:
-
-```text
-run_revit_code(code: string, timeout_seconds: number = 60) -> string
-```
-
-There is also an instruction tool for ChatGPT clients that do not consume MCP prompts:
+The local architecture is:
 
 ```text
-get_revit_mcp_prompt() -> string
-```
-
-And a context tool for version-aware code generation:
-
-```text
-get_revit_context() -> string
-```
-
-## Flow
-
-```text
-LLM / MCP client
-  -> Python MCP server
+ChatGPT / MCP client
+  -> local MCP server
   -> localhost WebSocket
   -> Revit add-in
   -> ExternalEvent
-  -> Roslyn compiled C#
+  -> Roslyn C# runtime
   -> Revit API
-  -> response back to MCP
 ```
 
-## Requirements
+The project is local-first. There is no hosted backend required.
 
-- Windows with Revit 2024, 2025, or 2026.
-- .NET SDK 8.
-- Python 3.11+.
-- PowerShell.
+## Supported Revit Versions
 
-The C# project uses `net48` for Revit 2024 and `net8.0-windows` for Revit 2025/2026.
-
-## Install The Add-in
-
-From the repository root:
-
-```powershell
-.\scripts\install-addin.ps1 -RevitVersion 2026
-```
-
-To list detected Revit installs first:
-
-```powershell
-.\scripts\find-revit.ps1
-```
-
-For a fuller Windows verification pass:
-
-```powershell
-.\scripts\verify-windows.ps1 -RevitVersion 2026
-```
-
-If Revit is installed in a non-default folder:
-
-```powershell
-.\scripts\install-addin.ps1 -RevitVersion 2026 -RevitInstallDir "D:\Apps\Autodesk\Revit 2026"
-```
-
-The script builds the add-in and writes:
+Current target:
 
 ```text
-%APPDATA%\Autodesk\Revit\Addins\2026\RevitMcp.addin
+Revit 2021-2024 -> .NET Framework 4.8 / net48
+Revit 2025-2026 -> .NET 8 / net8.0-windows
 ```
 
-The `.addin` points to the compiled DLL in this repo.
+Build and test each Revit version against that version's own `RevitAPI.dll`.
 
-## Run The MCP Server
-
-For manual testing:
-
-```powershell
-.\scripts\run-server.ps1
-```
-
-For ChatGPT through a tunnel, run the MCP server over Streamable HTTP:
-
-```powershell
-.\scripts\run-http-server.ps1
-```
-
-If dependencies changed or this is the first setup and you want to force reinstall:
-
-```powershell
-.\scripts\run-http-server.ps1 -InstallDependencies
-```
-
-This exposes MCP locally at:
+## MCP Tools
 
 ```text
-http://127.0.0.1:8000/mcp
+run_revit_code(code: string, timeout_seconds: number = 60) -> string
+get_revit_mcp_prompt() -> string
+get_revit_context(timeout_seconds: number = 30) -> string
 ```
 
-Tunnel that HTTP URL, not the Revit WebSocket URL. The Revit add-in still connects locally to `ws://127.0.0.1:8765`.
+`run_revit_code` expects only the body of a generated C# method. Do not send `using` directives, namespace/class declarations, or a `Run` method.
 
-For development tunnels, this script disables MCP Host header protection so changing ngrok URLs do not require restarting with a new host value. Use `-EnableHostProtection -PublicHost "your-domain"` if you want strict host checking.
+The add-in already provides:
 
-Then open or restart Revit. The add-in connects to:
+```csharp
+UIApplication app
+UIDocument uidoc
+Document doc
+```
+
+Correct:
+
+```csharp
+return doc.Title;
+```
+
+Wrong:
+
+```csharp
+Document doc = uidoc.Document;
+```
+
+For version-sensitive API usage, call `get_revit_context()` first and adapt generated code to the returned Revit version.
+
+## Tutorial Para Usuários Leigos
+
+This is the intended final experience once an installer release is published.
+
+1. Download `RevitMcpSetup.exe` from Releases.
+2. Run the installer.
+3. Open or restart Revit.
+4. Open the `Revit MCP` app from the Start Menu.
+5. Click `Start MCP`.
+6. Click `Start Tunnel`.
+7. Copy the URL shown by the app. It should end with:
 
 ```text
-ws://127.0.0.1:8765
+/mcp
 ```
 
-Add-in logs are written to:
+8. Add that MCP URL in ChatGPT.
+9. Test with:
+
+```csharp
+return doc.Title;
+```
+
+If something fails, open logs from the launcher or check:
 
 ```text
 %LOCALAPPDATA%\RevitMcp\addin.log
 ```
 
-For MCP client configuration, use the Python module command from the virtual environment or install the package and run:
+### Important User Notes
+
+- Revit must be open.
+- A project or family document should be active.
+- The tool can modify the model. Review requests before allowing destructive changes.
+- Large tasks should be split into small steps: levels, walls, doors, windows, floors, then views/rooms/annotations.
+
+## Tutorial Para Devs
+
+Use this path while developing from source.
+
+### Requirements
+
+- Windows
+- Revit 2021-2026
+- .NET SDK 8
+- Python 3.11+
+- PowerShell
+
+### 1. Clone And Enter The Repo
 
 ```powershell
-python -m revit_mcp.server
+git clone <repo-url>
+cd revit-mcp
 ```
 
-There is also a starter config at:
+If working from WSL, prefer copying the project to a normal Windows path such as:
 
 ```text
-config\mcp-client.example.json
+C:\dev\revit-mcp
 ```
 
-To print a config using your repo's actual `.venv` path:
+Revit and .NET are more reliable with local Windows paths than `\\wsl$` UNC paths.
+
+### 2. Detect Revit
 
 ```powershell
-.\scripts\write-mcp-config.ps1
+.\scripts\find-revit.ps1
 ```
 
-## Test Without Revit
+Example output:
 
-You can validate the Python MCP/WebSocket path before opening Revit.
+```text
+Version    : 2024
+InstallDir : C:\Program Files\Autodesk\Revit 2024
+```
+
+### 3. Build And Install The Add-in
+
+For Revit 2024:
+
+```powershell
+.\scripts\install-addin.ps1 -RevitVersion 2024 -RevitInstallDir "C:\Program Files\Autodesk\Revit 2024"
+```
+
+This creates:
+
+```text
+%APPDATA%\Autodesk\Revit\Addins\2024\RevitMcp.addin
+```
+
+### 4. Start MCP Over HTTP
+
+For ChatGPT/tunnel usage:
+
+```powershell
+.\scripts\run-http-server.ps1
+```
+
+This starts:
+
+```text
+http://127.0.0.1:8000/mcp
+```
+
+The Revit add-in connects locally to:
+
+```text
+ws://127.0.0.1:8765
+```
+
+### 5. Start A Tunnel
+
+Example with ngrok:
+
+```powershell
+ngrok http 8000
+```
+
+Use the public URL with `/mcp` appended:
+
+```text
+https://your-ngrok-domain.ngrok-free.app/mcp
+```
+
+Example with Cloudflare Tunnel:
+
+```powershell
+cloudflared tunnel --url http://127.0.0.1:8000
+```
+
+Use:
+
+```text
+https://your-cloudflare-domain.trycloudflare.com/mcp
+```
+
+### 6. Test
+
+Open or restart Revit, then call:
+
+```csharp
+return doc.Title;
+```
+
+For local automated Python tests:
+
+```powershell
+.\scripts\test-python.ps1
+```
+
+To test the Python/WebSocket path without Revit:
 
 Terminal 1:
 
@@ -152,118 +223,146 @@ Terminal 2:
 .\.venv\Scripts\python.exe -m revit_mcp.fake_revit_client
 ```
 
-Then call `run_revit_code` from your MCP client. The fake client will return the code with a `fake-result:` prefix. This only tests the Python/WebSocket path; Revit API execution still requires the add-in loaded in Revit.
+## Packaging For Releases
 
-To run the automated Python tests:
+The release plan is:
+
+```text
+RevitMcpLauncher.exe -> user-facing app
+RevitMcpServer.exe   -> hidden MCP server
+Revit add-in DLLs    -> one folder per Revit version
+Inno Setup installer -> installs app and writes .addin files
+```
+
+### Build Python EXEs
 
 ```powershell
-.\scripts\test-python.ps1
+.\scripts\build-server-exe.ps1
 ```
 
-## First Code Tests
+Outputs:
 
-Important: `run_revit_code` expects only the body of a generated C# method. Do not send `using` directives, namespace/class declarations, or a `Run` method. The add-in already provides:
-
-```csharp
-UIApplication app
-UIDocument uidoc
-Document doc
+```text
+dist\RevitMcp\app\RevitMcpServer.exe
+dist\RevitMcp\app\RevitMcpLauncher.exe
 ```
 
-So do this:
+### Package Add-ins
 
-```csharp
-return doc.Title;
-```
-
-Do not redeclare `doc`:
-
-```csharp
-Document doc = uidoc.Document; // wrong
-```
-
-For larger tasks, split the work into multiple calls. Do not try to create the whole model, rooms, views, sheets, annotations, doors, and windows in one script. Create core geometry first, then hosted elements, then documentation objects.
-
-For version-sensitive API usage, call `get_revit_context()` first and adapt the generated C# to the returned Revit version.
-
-Read active document title:
-
-```csharp
-return doc.Title;
-```
-
-Count walls:
-
-```csharp
-var wallCount = new FilteredElementCollector(doc)
-    .OfClass(typeof(Wall))
-    .Count();
-
-return wallCount.ToString();
-```
-
-List levels:
-
-```csharp
-var levels = new FilteredElementCollector(doc)
-    .OfClass(typeof(Level))
-    .Cast<Level>()
-    .Select(level => level.Name);
-
-return string.Join(", ", levels);
-```
-
-Modify the model:
-
-```csharp
-using (var tx = new Transaction(doc, "Criar parede via MCP"))
-{
-    tx.Start();
-
-    var level = new FilteredElementCollector(doc)
-        .OfClass(typeof(Level))
-        .Cast<Level>()
-        .First();
-
-    var wallType = new FilteredElementCollector(doc)
-        .OfClass(typeof(WallType))
-        .Cast<WallType>()
-        .First();
-
-    var p1 = new XYZ(0, 0, 0);
-    var p2 = new XYZ(10, 0, 0);
-    var line = Line.CreateBound(p1, p2);
-
-    Wall.Create(doc, line, wallType.Id, level.Id, 3, 0, false, false);
-
-    tx.Commit();
-}
-
-return "Parede criada.";
-```
-
-## Optional Token
-
-Set the same token for the MCP process and the Revit process:
+This builds every installed/supported Revit version it can find and skips missing versions:
 
 ```powershell
-$env:REVIT_MCP_TOKEN = "local-secret"
+.\scripts\package-addins.ps1
 ```
 
-The add-in reads `REVIT_MCP_TOKEN` from the Revit process environment.
+Outputs:
 
-## Uninstall
+```text
+dist\RevitMcp\addins\2024\RevitMcpAddin.dll
+dist\RevitMcp\addins\2025\RevitMcpAddin.dll
+...
+```
+
+### Build Full Package
 
 ```powershell
-.\scripts\uninstall-addin.ps1 -RevitVersion 2026
+.\scripts\package-release.ps1
 ```
+
+To validate an already-built release layout:
+
+```powershell
+.\scripts\check-release-layout.ps1 -RequireAddin
+```
+
+If Inno Setup is installed and `ISCC.exe` is available, it also builds:
+
+```text
+dist\installer\RevitMcpSetup.exe
+```
+
+The Inno script is:
+
+```text
+installer\RevitMcp.iss
+```
+
+## Launcher Behavior
+
+The launcher hides the MCP details from regular users:
+
+- starts `RevitMcpServer.exe`;
+- starts `cloudflared` or `ngrok` if available;
+- captures the public tunnel URL;
+- appends `/mcp`;
+- copies the final URL for ChatGPT;
+- opens the logs folder.
+
+Tunnel binaries are not committed. For a polished release, place `cloudflared.exe` or `ngrok.exe` next to `RevitMcpLauncher.exe`, or document that users must install one of them.
 
 ## Troubleshooting
 
-If Revit does not connect, check:
+### Revit Does Not Connect
 
-- The MCP server is running before or after Revit starts. The add-in retries every 2 seconds.
-- `%LOCALAPPDATA%\RevitMcp\addin.log`
-- `%APPDATA%\Autodesk\Revit\Addins\2026\RevitMcp.addin`
-- The `.addin` file points to the built `RevitMcpAddin.dll`.
-- `REVIT_MCP_WS_URL` if you changed the default WebSocket URL.
+Check:
+
+```text
+%LOCALAPPDATA%\RevitMcp\addin.log
+```
+
+Also confirm:
+
+- Revit was restarted after installing the add-in.
+- The MCP server is running.
+- Port `8765` is free.
+- The `.addin` file exists under `%APPDATA%\Autodesk\Revit\Addins\<version>`.
+
+### ChatGPT Cannot Reach MCP
+
+Check:
+
+- MCP HTTP server is running on `http://127.0.0.1:8000/mcp`.
+- Tunnel points to port `8000`, not `8765`.
+- Public URL ends with `/mcp`.
+
+### Revit Code Fails To Compile
+
+Use `get_revit_mcp_prompt()` and follow these rules:
+
+- send only method-body C#;
+- do not include `using`;
+- do not include classes or methods;
+- do not redeclare `doc`, `uidoc`, or `app`;
+- split large operations into smaller calls.
+
+## Security
+
+This project executes C# inside Revit. Treat it like a local automation console.
+
+Recommended defaults for public releases:
+
+- local-only MCP server;
+- visible launcher status;
+- logs for executed code;
+- optional read-only mode in the future;
+- confirmation UI for destructive operations in the future.
+
+## Useful Commands
+
+Uninstall add-in for one Revit version:
+
+```powershell
+.\scripts\uninstall-addin.ps1 -RevitVersion 2024
+```
+
+Force dependency install when running the HTTP server:
+
+```powershell
+.\scripts\run-http-server.ps1 -InstallDependencies
+```
+
+Run a full developer verification pass:
+
+```powershell
+.\scripts\verify-windows.ps1 -RevitVersion 2024 -RevitInstallDir "C:\Program Files\Autodesk\Revit 2024"
+```

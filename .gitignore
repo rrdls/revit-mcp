@@ -1,9 +1,12 @@
 .venv/
+.venv-build/
 __pycache__/
 .pytest_cache/
 *.pyc
 
 bin/
 obj/
+dist/
+*.spec
 *.user
 *.suo

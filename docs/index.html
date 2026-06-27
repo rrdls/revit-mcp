@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Revit MCP conecta ChatGPT ao Autodesk Revit com instalação local, add-in Revit e servidor MCP controlado por uma interface simples."
+    />
+    <title>Revit MCP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero" id="top">
+      <div class="scanlines" aria-hidden="true"></div>
+      <nav class="nav" aria-label="Navegação principal">
+        <a class="brand" href="#top">
+          <span class="status-dot" aria-hidden="true"></span>
+          Revit MCP
+        </a>
+        <div class="nav-links">
+          <a href="#install">Instalar</a>
+          <a href="#how">Como funciona</a>
+          <a href="#devs">Devs</a>
+        </div>
+      </nav>
+
+      <section class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">[ local-first · revit automation · mcp ]</p>
+          <h1>
+            <span class="prompt">$</span> conecte
+            <span class="accent">ChatGPT ao Revit</span><span class="cursor" aria-hidden="true"></span>
+          </h1>
+          <p class="lead">
+            Um instalador local coloca o add-in no Revit, sobe o servidor MCP e gera a URL para usar no ChatGPT.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#install">Ver instalação</a>
+            <a class="button secondary" href="https://github.com/" rel="noreferrer">GitHub</a>
+          </div>
+        </div>
+
+        <div class="terminal-visual" aria-label="Demonstração visual do Revit MCP">
+          <div class="terminal-bar">
+            <span>~/revit-mcp/session</span>
+            <span class="terminal-live">● connected</span>
+          </div>
+          <div class="terminal-body">
+            <p><span class="green">revit-mcp</span> start</p>
+            <p class="muted">MCP HTTP: http://127.0.0.1:8000/mcp</p>
+            <p class="muted">Revit bridge: ws://127.0.0.1:8765</p>
+            <p><span class="blue">tool</span> get_revit_context</p>
+            <pre>{
+  "revitVersion": "2024",
+  "documentTitle": "Projeto.rvt",
+  "connected": true
+}</pre>
+            <p><span class="blue">tool</span> run_revit_code</p>
+            <pre>return doc.Title;</pre>
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="band" id="why">
+        <div class="section-head">
+          <p class="eyebrow">[ por que existe ]</p>
+          <h2>Automação no Revit sem pedir para o usuário abrir terminal.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="card-index">01</span>
+            <h3>Add-in instalado</h3>
+            <p>O instalador cria o arquivo `.addin` certo para a versão do Revit detectada.</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-index">02</span>
+            <h3>MCP escondido</h3>
+            <p>O launcher sobe o servidor local e mostra apenas a URL que o usuário precisa copiar.</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-index">03</span>
+            <h3>Execução segura no contexto Revit</h3>
+            <p>O código entra por fila, passa por `ExternalEvent` e roda no processo correto do Revit.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="band split" id="how">
+        <div class="section-head">
+          <p class="eyebrow">[ fluxo ]</p>
+          <h2>O usuário vê uma URL. O sistema cuida do resto.</h2>
+        </div>
+        <ol class="flow-list">
+          <li>
+            <span>01</span>
+            <p>ChatGPT chama a tool MCP.</p>
+          </li>
+          <li>
+            <span>02</span>
+            <p>Servidor MCP local encaminha o comando para o add-in.</p>
+          </li>
+          <li>
+            <span>03</span>
+            <p>Revit executa o C# via `ExternalEvent` e Roslyn.</p>
+          </li>
+          <li>
+            <span>04</span>
+            <p>A resposta volta para o ChatGPT.</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="band install" id="install">
+        <div class="section-head">
+          <p class="eyebrow">[ tutorial leigo ]</p>
+          <h2>Instalação pensada para quem não programa.</h2>
+        </div>
+        <div class="steps">
+          <article>
+            <strong>1</strong>
+            <h3>Baixe o instalador</h3>
+            <p>Use o `RevitMcpSetup.exe` publicado no GitHub Releases.</p>
+          </article>
+          <article>
+            <strong>2</strong>
+            <h3>Abra o Revit</h3>
+            <p>Reinicie o Revit depois de instalar para carregar o add-in.</p>
+          </article>
+          <article>
+            <strong>3</strong>
+            <h3>Inicie o Revit MCP</h3>
+            <p>Clique em `Start MCP`, depois em `Start Tunnel`.</p>
+          </article>
+          <article>
+            <strong>4</strong>
+            <h3>Copie a URL</h3>
+            <p>Cole a URL terminada em `/mcp` no ChatGPT.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="band command-band">
+        <div class="terminal-wide">
+          <div class="terminal-bar">
+            <span>primeiro teste</span>
+            <span class="terminal-live">run_revit_code</span>
+          </div>
+          <pre>return doc.Title;</pre>
+        </div>
+      </section>
+
+      <section class="band" id="devs">
+        <div class="section-head">
+          <p class="eyebrow">[ para devs ]</p>
+          <h2>Scripts continuam disponíveis para desenvolvimento e release.</h2>
+        </div>
+        <div class="dev-grid">
+          <article class="feature-card">
+            <h3>Dev local</h3>
+            <pre>.\scripts\install-addin.ps1 -RevitVersion 2024
+.\scripts\run-http-server.ps1</pre>
+          </article>
+          <article class="feature-card">
+            <h3>Release</h3>
+            <pre>.\scripts\package-release.ps1
+.\scripts\check-release-layout.ps1 -RequireAddin</pre>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span><span class="status-dot" aria-hidden="true"></span> Revit MCP</span>
+      <a href="#top">voltar ao topo</a>
+    </footer>
+  </body>
+</html>

@@ -287,6 +287,17 @@ The Inno script is:
 installer\RevitMcp.iss
 ```
 
+## Landing Page / GitHub Pages
+
+The public landing page lives in:
+
+```text
+docs\index.html
+docs\styles.css
+```
+
+In GitHub Pages, set the source to the `docs` folder on the default branch.
+
 ## Launcher Behavior
 
 The launcher hides the MCP details from regular users:

@@ -1,6 +1,7 @@
 param(
     [string[]]$RevitVersions = @("2021", "2022", "2023", "2024", "2025", "2026"),
     [switch]$SkipPythonExe,
+    [switch]$SkipCloudflared,
     [switch]$SkipInstaller
 )
 
@@ -13,6 +14,10 @@ New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
 
 if (!$SkipPythonExe) {
     & (Join-Path $PSScriptRoot "build-server-exe.ps1")
+}
+
+if (!$SkipCloudflared) {
+    & (Join-Path $PSScriptRoot "fetch-cloudflared.ps1")
 }
 
 & (Join-Path $PSScriptRoot "package-addins.ps1") -RevitVersions $RevitVersions -Configuration Release

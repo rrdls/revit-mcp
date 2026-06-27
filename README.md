@@ -230,6 +230,7 @@ The release plan is:
 ```text
 RevitMcpLauncher.exe -> user-facing app
 RevitMcpServer.exe   -> hidden MCP server
+cloudflared.exe      -> bundled temporary tunnel
 Revit add-in DLLs    -> one folder per Revit version
 Inno Setup installer -> installs app and writes .addin files
 ```
@@ -269,6 +270,18 @@ dist\RevitMcp\addins\2025\RevitMcpAddin.dll
 .\scripts\package-release.ps1
 ```
 
+By default this downloads `cloudflared.exe` into:
+
+```text
+dist\RevitMcp\app\cloudflared.exe
+```
+
+To skip that download:
+
+```powershell
+.\scripts\package-release.ps1 -SkipCloudflared
+```
+
 To validate an already-built release layout:
 
 ```powershell
@@ -279,6 +292,26 @@ If Inno Setup is installed and `ISCC.exe` is available, it also builds:
 
 ```text
 dist\installer\RevitMcpSetup.exe
+```
+
+### Publish GitHub Release From Terminal
+
+Install and login with GitHub CLI:
+
+```powershell
+gh auth login
+```
+
+Create a release with the installer:
+
+```powershell
+gh release create v0.1.0 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.1.0" --notes "Initial release"
+```
+
+If the tag already exists, upload or replace the installer:
+
+```powershell
+gh release upload v0.1.0 dist\installer\RevitMcpSetup.exe --clobber
 ```
 
 The Inno script is:
@@ -309,7 +342,7 @@ The launcher hides the MCP details from regular users:
 - copies the final URL for ChatGPT;
 - opens the logs folder.
 
-Tunnel binaries are not committed. For a polished release, place `cloudflared.exe` or `ngrok.exe` next to `RevitMcpLauncher.exe`, or document that users must install one of them.
+`cloudflared.exe` is downloaded during `package-release.ps1` and installed next to `RevitMcpLauncher.exe`. `ngrok.exe` is optional and is not bundled.
 
 ## Troubleshooting
 

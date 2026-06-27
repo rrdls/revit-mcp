@@ -88,6 +88,31 @@
         </div>
       </section>
 
+      <section class="band power-section" id="power">
+        <div class="section-head">
+          <p class="eyebrow">[ o que ele consegue fazer ]</p>
+          <h2>O ChatGPT passa instruções para o Revit. O Revit executa de verdade.</h2>
+          <p class="section-copy">
+            Depois de conectado, você pode pedir para listar informações, criar elementos, editar parâmetros, contar objetos, gerar paredes, portas, janelas e outras automações usando a API do Revit.
+          </p>
+        </div>
+
+        <div class="power-grid">
+          <article class="capability">
+            <span>listar</span>
+            <p>Níveis, paredes, vistas, famílias, tipos, parâmetros e quantidades.</p>
+          </article>
+          <article class="capability">
+            <span>criar</span>
+            <p>Paredes, linhas, pisos, instâncias de famílias e outros elementos via transação.</p>
+          </article>
+          <article class="capability">
+            <span>editar</span>
+            <p>Alterar parâmetros, nomes, tipos, posições e propriedades do modelo.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="band split" id="how">
         <div class="section-head">
           <p class="eyebrow">[ fluxo ]</p>
@@ -143,12 +168,86 @@
       </section>
 
       <section class="band command-band">
+        <div class="section-head">
+          <p class="eyebrow">[ teste de conexão ]</p>
+          <h2>O primeiro teste só pergunta ao Revit qual projeto está aberto.</h2>
+          <p class="section-copy">
+            Depois de conectar o ChatGPT, peça para ele fazer um teste simples. Ele vai enviar o comando abaixo para o Revit. Se a resposta for o nome do seu arquivo, a conexão está funcionando.
+          </p>
+        </div>
         <div class="terminal-wide">
           <div class="terminal-bar">
-            <span>primeiro teste</span>
-            <span class="terminal-live">run_revit_code</span>
+            <span>mensagem para o ChatGPT</span>
+            <span class="terminal-live">teste seguro</span>
           </div>
-          <pre>return doc.Title;</pre>
+          <pre>Use o Revit MCP para executar este teste:
+
+return doc.Title;</pre>
+        </div>
+        <div class="result-note">
+          <span class="status-dot" aria-hidden="true"></span>
+          Resultado esperado: o ChatGPT responde com o nome do projeto aberto no Revit.
+        </div>
+      </section>
+
+      <section class="band wall-example" id="example">
+        <div class="section-head">
+          <p class="eyebrow">[ exemplo avançado ]</p>
+          <h2>Exemplo: pedir para o ChatGPT criar uma parede.</h2>
+          <p class="section-copy">
+            O usuário escreve um pedido simples. O ChatGPT transforma isso em C# compatível com o executor. O add-in abre uma transação no Revit, cria a parede e devolve uma confirmação.
+          </p>
+        </div>
+
+        <div class="example-grid">
+          <div class="terminal-wide">
+            <div class="terminal-bar">
+              <span>pedido do usuário</span>
+              <span class="terminal-live">linguagem natural</span>
+            </div>
+            <pre>Crie uma parede reta de 10 metros no primeiro nível do projeto.</pre>
+          </div>
+
+          <div class="terminal-wide">
+            <div class="terminal-bar">
+              <span>código enviado para run_revit_code</span>
+              <span class="terminal-live">C# Revit API</span>
+            </div>
+            <pre>using (var tx = new Transaction(doc, "Criar parede via Revit MCP"))
+{
+    tx.Start();
+
+    var level = new FilteredElementCollector(doc)
+        .OfClass(typeof(Level))
+        .Cast&lt;Level&gt;()
+        .First();
+
+    var wallType = new FilteredElementCollector(doc)
+        .OfClass(typeof(WallType))
+        .Cast&lt;WallType&gt;()
+        .First();
+
+    var line = Line.CreateBound(new XYZ(0, 0, 0), new XYZ(10, 0, 0));
+    Wall.Create(doc, line, wallType.Id, level.Id, 3, 0, false, false);
+
+    tx.Commit();
+}
+
+return "Parede criada.";</pre>
+          </div>
+
+          <div class="wall-result">
+            <div class="wall-scene" aria-hidden="true">
+              <div class="grid-floor"></div>
+              <div class="wall-3d"></div>
+              <div class="axis x-axis">10m</div>
+              <div class="axis z-axis">3m</div>
+            </div>
+            <div class="result-note">
+              <span class="status-dot" aria-hidden="true"></span>
+              Resultado esperado: uma parede aparece no modelo aberto do Revit.
+            </div>
+          </div>
         </div>
       </section>
 

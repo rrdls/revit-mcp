@@ -32,7 +32,10 @@ mcp = FastMCP(
 _bridge = None
 
 if os.getenv("REVIT_MCP_START_BRIDGE_ON_IMPORT", "true").lower() in {"1", "true", "yes"}:
-    _bridge = bridge_from_env()
+    try:
+        _bridge = bridge_from_env()
+    except RuntimeError:
+        logging.exception("Could not start Revit WebSocket bridge during startup. It will retry on tool use.")
 
 
 def get_bridge():

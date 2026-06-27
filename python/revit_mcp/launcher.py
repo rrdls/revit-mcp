@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import queue
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -118,6 +119,17 @@ class Launcher(tk.Tk):
         if self.server and self.server.running():
             return
 
+        http_busy = port_is_open("127.0.0.1", int(HTTP_PORT))
+        revit_busy = port_is_open("127.0.0.1", int(REVIT_WS_PORT))
+        if http_busy and revit_busy:
+            self.server_status.set("MCP server: already running")
+            self._handle_line("MCP server appears to already be running on ports 8000 and 8765.")
+            return
+        if revit_busy and not http_busy:
+            self.server_status.set("MCP server: cannot start")
+            self._handle_line("Port 8765 is already in use. Close the old Revit MCP server process, then try again.")
+            return
+
         env = os.environ.copy()
         env.update(
             {
@@ -150,6 +162,11 @@ class Launcher(tk.Tk):
         if self.tunnel and self.tunnel.running():
             return
 
+        if not port_is_open("127.0.0.1", int(HTTP_PORT)):
+            self._handle_line("Start MCP before starting the tunnel. Port 8000 is not responding yet.")
+            self.tunnel_status.set("Tunnel: waiting for MCP")
+            return
+
         tool = self.tunnel_kind.get()
         if tool == "cloudflared":
             command = [self._tool_path("cloudflared.exe", "cloudflared"), "tunnel", "--url", f"http://127.0.0.1:{HTTP_PORT}"]
@@ -162,6 +179,7 @@ class Launcher(tk.Tk):
             self.tunnel_status.set(f"Tunnel: starting ({tool})")
         except FileNotFoundError:
             messagebox.showerror("Tunnel tool not found", f"Could not find {tool}. Install it or place it next to this app.")
+            self._handle_line(f"Could not find tunnel command: {tool}")
 
     def stop_tunnel(self) -> None:
         if self.tunnel:
@@ -221,6 +239,13 @@ def main() -> None:
     app.mainloop()
 
 
+def port_is_open(host: str, port: int) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.35):
+            return True
+    except OSError:
+        return False
+
+
 if __name__ == "__main__":
     main()
-

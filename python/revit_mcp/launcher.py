@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import os
 import queue
 import re
@@ -155,8 +156,26 @@ class Launcher(tk.Tk):
         self.server_status.set("MCP server: starting")
 
     def stop_server(self) -> None:
+        stopped = False
         if self.server:
             self.server.stop()
+            stopped = True
+
+        allowed_names = {"RevitMcpServer.exe"}
+        if not getattr(sys, "frozen", False):
+            allowed_names.update({"python.exe", "pythonw.exe"})
+
+        stopped_pids = stop_processes_listening_on_ports(
+            [int(HTTP_PORT), int(REVIT_WS_PORT)],
+            allowed_names,
+        )
+        if stopped_pids:
+            stopped = True
+            self._handle_line("Stopped MCP process IDs: " + ", ".join(str(pid) for pid in sorted(stopped_pids)))
+
+        if not stopped:
+            self._handle_line("No running MCP server process was found.")
+
         self.server_status.set("MCP server: stopped")
 
     def start_tunnel(self) -> None:
@@ -272,6 +291,70 @@ def port_is_open(host: str, port: int) -> bool:
             return True
     except OSError:
         return False
+
+
+def stop_processes_listening_on_ports(ports: list[int], allowed_names: set[str]) -> set[int]:
+    if os.name != "nt":
+        return set()
+
+    stopped: set[int] = set()
+    for pid in process_ids_listening_on_ports(ports):
+        name = process_image_name(pid)
+        if name not in allowed_names:
+            continue
+
+        subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            check=False,
+        )
+        stopped.add(pid)
+
+    return stopped
+
+
+def process_ids_listening_on_ports(ports: list[int]) -> set[int]:
+    wanted = {str(port) for port in ports}
+    result = subprocess.run(
+        ["netstat", "-ano", "-p", "tcp"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        check=False,
+    )
+
+    pids: set[int] = set()
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 5 or parts[0].upper() != "TCP":
+            continue
+        local_address, state, pid = parts[1], parts[3].upper(), parts[4]
+        if state != "LISTENING":
+            continue
+        port = local_address.rsplit(":", 1)[-1]
+        if port in wanted and pid.isdigit():
+            pids.add(int(pid))
+
+    return pids
+
+
+def process_image_name(pid: int) -> str | None:
+    result = subprocess.run(
+        ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+        check=False,
+    )
+
+    rows = list(csv.reader(result.stdout.splitlines()))
+    if not rows or not rows[0] or rows[0][0].startswith("INFO:"):
+        return None
+    return rows[0][0]
 
 
 if __name__ == "__main__":

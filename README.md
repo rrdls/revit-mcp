@@ -288,7 +288,7 @@ To validate an already-built release layout:
 .\scripts\check-release-layout.ps1 -RequireAddin
 ```
 
-If Inno Setup is installed and `ISCC.exe` is available, it also builds:
+If Inno Setup 6 is installed, the script finds `ISCC.exe` from `PATH` or the default Windows install folders and also builds:
 
 ```text
 dist\installer\RevitMcpSetup.exe

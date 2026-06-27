@@ -25,11 +25,29 @@ if (!$SkipCloudflared) {
 
 if (!$SkipInstaller) {
     $iscc = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
-    if ($iscc) {
-        & $iscc.Source (Join-Path $repoRoot "installer\RevitMcp.iss")
+    $isccPath = if ($iscc) { $iscc.Source } else { $null }
+
+    if (!$isccPath) {
+        $candidatePaths = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+        )
+
+        foreach ($candidatePath in $candidatePaths) {
+            if ($candidatePath -and (Test-Path $candidatePath)) {
+                $isccPath = $candidatePath
+                break
+            }
+        }
+    }
+
+    if ($isccPath) {
+        Write-Host "Building installer with Inno Setup:"
+        Write-Host "  $isccPath"
+        & $isccPath (Join-Path $repoRoot "installer\RevitMcp.iss")
     }
     else {
-        Write-Warning "Inno Setup ISCC.exe was not found. Install Inno Setup or run installer\RevitMcp.iss manually."
+        Write-Warning "Inno Setup ISCC.exe was not found. Install Inno Setup 6 or add ISCC.exe to PATH."
     }
 }
 

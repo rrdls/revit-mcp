@@ -211,6 +211,17 @@ h1 {
   color: var(--accent);
 }
 
+.inline-link {
+  display: inline-flex;
+  margin-top: 18px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.inline-link:hover {
+  text-shadow: 0 0 14px rgba(57, 255, 136, 0.6);
+}
+
 .terminal-visual,
 .terminal-wide {
   background: var(--surface);

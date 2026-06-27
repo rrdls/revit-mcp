@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Revit MCP conecta ChatGPT ao Autodesk Revit com instalação local, add-in Revit e servidor MCP controlado por uma interface simples."
+      content="Revit MCP conecta assistentes IA compatíveis com MCP ao Autodesk Revit com instalação local, add-in Revit e servidor MCP controlado por uma interface simples."
     />
     <title>Revit MCP</title>
     <link rel="stylesheet" href="./styles.css" />
@@ -19,8 +19,12 @@
           Revit MCP
         </a>
         <div class="nav-links">
+          <a href="#why">Por que</a>
+          <a href="#power">Poder</a>
+          <a href="#how">Fluxo</a>
           <a href="#install">Instalar</a>
-          <a href="#how">Como funciona</a>
+          <a href="#test">Teste</a>
+          <a href="#example">Exemplo</a>
           <a href="#devs">Devs</a>
         </div>
       </nav>
@@ -30,10 +34,10 @@
           <p class="eyebrow">[ local-first · revit automation · mcp ]</p>
           <h1>
             <span class="prompt">$</span> conecte
-            <span class="accent">ChatGPT ao Revit</span><span class="cursor" aria-hidden="true"></span>
+            <span class="accent">IA ao Revit</span><span class="cursor" aria-hidden="true"></span>
           </h1>
           <p class="lead">
-            Um instalador local coloca o add-in no Revit, sobe o servidor MCP e gera a URL para usar no ChatGPT.
+            Um instalador local coloca o add-in no Revit, sobe o servidor MCP e gera a URL para usar em ChatGPT, Claude, Gemini ou outro cliente compatível com MCP.
           </p>
           <div class="hero-actions">
             <a class="button primary" href="#install">Ver instalação</a>
@@ -91,7 +95,7 @@
       <section class="band power-section" id="power">
         <div class="section-head">
           <p class="eyebrow">[ o que ele consegue fazer ]</p>
-          <h2>O ChatGPT passa instruções para o Revit. O Revit executa de verdade.</h2>
+          <h2>Seu assistente IA passa instruções para o Revit. O Revit executa de verdade.</h2>
           <p class="section-copy">
             Depois de conectado, você pode pedir para listar informações, criar elementos, editar parâmetros, contar objetos, gerar paredes, portas, janelas e outras automações usando a API do Revit.
           </p>
@@ -121,7 +125,7 @@
         <ol class="flow-list">
           <li>
             <span>01</span>
-            <p>ChatGPT chama a tool MCP.</p>
+            <p>O assistente IA chama a tool MCP.</p>
           </li>
           <li>
             <span>02</span>
@@ -133,7 +137,7 @@
           </li>
           <li>
             <span>04</span>
-            <p>A resposta volta para o ChatGPT.</p>
+            <p>A resposta volta para o assistente IA.</p>
           </li>
         </ol>
       </section>
@@ -162,22 +166,22 @@
           <article>
             <strong>4</strong>
             <h3>Copie a URL</h3>
-            <p>Cole a URL terminada em `/mcp` no ChatGPT.</p>
+            <p>Cole a URL terminada em `/mcp` no cliente MCP do seu assistente IA.</p>
           </article>
         </div>
       </section>
 
-      <section class="band command-band">
+      <section class="band command-band" id="test">
         <div class="section-head">
           <p class="eyebrow">[ teste de conexão ]</p>
           <h2>O primeiro teste só pergunta ao Revit qual projeto está aberto.</h2>
           <p class="section-copy">
-            Depois de conectar o ChatGPT, peça para ele fazer um teste simples. Ele vai enviar o comando abaixo para o Revit. Se a resposta for o nome do seu arquivo, a conexão está funcionando.
+            Depois de conectar seu assistente IA, peça para ele fazer um teste simples. Ele vai enviar o comando abaixo para o Revit. Se a resposta for o nome do seu arquivo, a conexão está funcionando.
           </p>
         </div>
         <div class="terminal-wide">
           <div class="terminal-bar">
-            <span>mensagem para o ChatGPT</span>
+            <span>mensagem para o assistente IA</span>
             <span class="terminal-live">teste seguro</span>
           </div>
           <pre>Use o Revit MCP para executar este teste:
@@ -186,16 +190,16 @@ return doc.Title;</pre>
         </div>
         <div class="result-note">
           <span class="status-dot" aria-hidden="true"></span>
-          Resultado esperado: o ChatGPT responde com o nome do projeto aberto no Revit.
+          Resultado esperado: o assistente IA responde com o nome do projeto aberto no Revit.
         </div>
       </section>
 
       <section class="band wall-example" id="example">
         <div class="section-head">
           <p class="eyebrow">[ exemplo avançado ]</p>
-          <h2>Exemplo: pedir para o ChatGPT criar uma parede.</h2>
+          <h2>Exemplo: pedir para a IA criar uma parede.</h2>
           <p class="section-copy">
-            O usuário escreve um pedido simples. O ChatGPT transforma isso em C# compatível com o executor. O add-in abre uma transação no Revit, cria a parede e devolve uma confirmação.
+            O usuário escreve um pedido simples. O assistente IA transforma isso em C# compatível com o executor. O add-in abre uma transação no Revit, cria a parede e devolve uma confirmação.
           </p>
         </div>
 

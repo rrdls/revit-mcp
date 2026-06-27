@@ -397,6 +397,30 @@ h1 {
   font-size: 24px;
 }
 
+.code-block {
+  color: #d6deeb;
+}
+
+.code-block .kw {
+  color: var(--accent);
+}
+
+.code-block .type {
+  color: var(--accent-2);
+}
+
+.code-block .fn {
+  color: #ffd866;
+}
+
+.code-block .str {
+  color: #ffb86c;
+}
+
+.code-block .num {
+  color: #c792ea;
+}
+
 .result-note {
   display: flex;
   align-items: center;

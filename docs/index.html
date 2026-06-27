@@ -213,27 +213,27 @@ return doc.Title;</pre>
               <span>código enviado para run_revit_code</span>
               <span class="terminal-live">C# Revit API</span>
             </div>
-            <pre>using (var tx = new Transaction(doc, "Criar parede via Revit MCP"))
+            <pre class="code-block"><span class="kw">using</span> (<span class="kw">var</span> tx = <span class="kw">new</span> <span class="type">Transaction</span>(doc, <span class="str">"Criar parede via Revit MCP"</span>))
 {
-    tx.Start();
+    tx.<span class="fn">Start</span>();
 
-    var level = new FilteredElementCollector(doc)
-        .OfClass(typeof(Level))
-        .Cast&lt;Level&gt;()
-        .First();
+    <span class="kw">var</span> level = <span class="kw">new</span> <span class="type">FilteredElementCollector</span>(doc)
+        .<span class="fn">OfClass</span>(<span class="kw">typeof</span>(<span class="type">Level</span>))
+        .<span class="fn">Cast</span>&lt;<span class="type">Level</span>&gt;()
+        .<span class="fn">First</span>();
 
-    var wallType = new FilteredElementCollector(doc)
-        .OfClass(typeof(WallType))
-        .Cast&lt;WallType&gt;()
-        .First();
+    <span class="kw">var</span> wallType = <span class="kw">new</span> <span class="type">FilteredElementCollector</span>(doc)
+        .<span class="fn">OfClass</span>(<span class="kw">typeof</span>(<span class="type">WallType</span>))
+        .<span class="fn">Cast</span>&lt;<span class="type">WallType</span>&gt;()
+        .<span class="fn">First</span>();
 
-    var line = Line.CreateBound(new XYZ(0, 0, 0), new XYZ(10, 0, 0));
-    Wall.Create(doc, line, wallType.Id, level.Id, 3, 0, false, false);
+    <span class="kw">var</span> line = <span class="type">Line</span>.<span class="fn">CreateBound</span>(<span class="kw">new</span> <span class="type">XYZ</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>), <span class="kw">new</span> <span class="type">XYZ</span>(<span class="num">10</span>, <span class="num">0</span>, <span class="num">0</span>));
+    <span class="type">Wall</span>.<span class="fn">Create</span>(doc, line, wallType.Id, level.Id, <span class="num">3</span>, <span class="num">0</span>, <span class="kw">false</span>, <span class="kw">false</span>);
 
-    tx.Commit();
+    tx.<span class="fn">Commit</span>();
 }
 
-return "Parede criada.";</pre>
+<span class="kw">return</span> <span class="str">"Parede criada."</span>;</pre>
           </div>
 
           <div class="wall-result">

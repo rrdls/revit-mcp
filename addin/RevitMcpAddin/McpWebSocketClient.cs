@@ -18,11 +18,13 @@ public sealed class McpWebSocketClient : IDisposable
     private readonly ConcurrentQueue<RevitCommandRequest> _commandQueue;
     private readonly ExternalEvent _externalEvent;
     private readonly Uri _serverUri;
-    private readonly CancellationTokenSource _cts = new();
+    private readonly object _lockObject = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
 
+    private CancellationTokenSource? _cts;
     private ClientWebSocket? _socket;
     private Task? _runTask;
+    private bool _disposed;
 
     public McpWebSocketClient(ConcurrentQueue<RevitCommandRequest> commandQueue, ExternalEvent externalEvent)
     {
@@ -34,7 +36,32 @@ public sealed class McpWebSocketClient : IDisposable
 
     public void Start()
     {
-        _runTask = Task.Run(RunAsync);
+        lock (_lockObject)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (_runTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            _runTask = Task.Run(() => RunAsync(_cts.Token));
+        }
+    }
+
+    public void Stop()
+    {
+        lock (_lockObject)
+        {
+            _cts?.Cancel();
+            _socket?.Dispose();
+            _socket = null;
+        }
     }
 
     public async Task SendAsync(RevitCommandResponse response)
@@ -47,11 +74,12 @@ public sealed class McpWebSocketClient : IDisposable
 
         var json = JsonSerializer.Serialize(response, JsonOptions);
         var buffer = Encoding.UTF8.GetBytes(json);
+        var token = _cts?.Token ?? CancellationToken.None;
 
-        await _sendLock.WaitAsync(_cts.Token).ConfigureAwait(false);
+        await _sendLock.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, _cts.Token).ConfigureAwait(false);
+            await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, token).ConfigureAwait(false);
         }
         catch
         {
@@ -65,25 +93,34 @@ public sealed class McpWebSocketClient : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _socket?.Dispose();
+        lock (_lockObject)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        Stop();
         _sendLock.Dispose();
-        _cts.Dispose();
+        _cts?.Dispose();
     }
 
-    private async Task RunAsync()
+    private async Task RunAsync(CancellationToken cancellationToken)
     {
-        while (!_cts.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
                 using var socket = new ClientWebSocket();
                 _socket = socket;
                 McpLog.Info($"Connecting to MCP server at {_serverUri}.");
-                await socket.ConnectAsync(_serverUri, _cts.Token).ConfigureAwait(false);
+                await socket.ConnectAsync(_serverUri, cancellationToken).ConfigureAwait(false);
                 McpLog.Info("Connected to MCP server.");
-                await SendHelloAsync(socket).ConfigureAwait(false);
-                await ReceiveLoopAsync(socket).ConfigureAwait(false);
+                await SendHelloAsync(socket, cancellationToken).ConfigureAwait(false);
+                await ReceiveLoopAsync(socket, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -92,7 +129,7 @@ public sealed class McpWebSocketClient : IDisposable
             catch (Exception ex)
             {
                 McpLog.Error("MCP server connection failed. Retrying.", ex);
-                await Task.Delay(TimeSpan.FromSeconds(2), _cts.Token).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -101,7 +138,7 @@ public sealed class McpWebSocketClient : IDisposable
         }
     }
 
-    private async Task SendHelloAsync(ClientWebSocket socket)
+    private async Task SendHelloAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         var token = Environment.GetEnvironmentVariable("REVIT_MCP_TOKEN");
         if (string.IsNullOrWhiteSpace(token))
@@ -111,24 +148,24 @@ public sealed class McpWebSocketClient : IDisposable
 
         var hello = JsonSerializer.Serialize(new { type = "hello", token }, JsonOptions);
         var buffer = Encoding.UTF8.GetBytes(hello);
-        await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, _cts.Token).ConfigureAwait(false);
+        await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ReceiveLoopAsync(ClientWebSocket socket)
+    private async Task ReceiveLoopAsync(ClientWebSocket socket, CancellationToken cancellationToken)
     {
         var buffer = new byte[64 * 1024];
 
-        while (!_cts.IsCancellationRequested && socket.State == WebSocketState.Open)
+        while (!cancellationToken.IsCancellationRequested && socket.State == WebSocketState.Open)
         {
             using var message = new MemoryStream();
             WebSocketReceiveResult result;
 
             do
             {
-                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token).ConfigureAwait(false);
+                result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", _cts.Token).ConfigureAwait(false);
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cancellationToken).ConfigureAwait(false);
                     return;
                 }
 

@@ -11,6 +11,11 @@ public sealed class StartMcpCommand : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         var result = RevitMcpRuntime.McpProcess.Start();
+        if (result.Ok)
+        {
+            App.StartWebSocketClient();
+        }
+
         RevitTaskDialogs.Show("Start MCP", result.Message);
         return result.Ok ? Result.Succeeded : Result.Failed;
     }
@@ -21,6 +26,7 @@ public sealed class StopMcpCommand : IExternalCommand
 {
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
+        App.StopWebSocketClient();
         var result = RevitMcpRuntime.McpProcess.Stop();
         RevitTaskDialogs.Show("Stop MCP", result.Message);
         return result.Ok ? Result.Succeeded : Result.Failed;

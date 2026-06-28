@@ -6,6 +6,8 @@ namespace RevitMcpAddin;
 
 public sealed class App : IExternalApplication
 {
+    private static App? _current;
+
     private readonly ConcurrentQueue<RevitCommandRequest> _commandQueue = new();
     private McpExternalEventHandler? _handler;
     private ExternalEvent? _externalEvent;
@@ -14,6 +16,7 @@ public sealed class App : IExternalApplication
     public Result OnStartup(UIControlledApplication application)
     {
         McpLog.Info("Starting Revit MCP add-in.");
+        _current = this;
         RevitMcpRuntime.Initialize(application.ControlledApplication.VersionNumber);
         CreateRibbon(application);
 
@@ -21,7 +24,10 @@ public sealed class App : IExternalApplication
         _externalEvent = ExternalEvent.Create(_handler);
         _webSocketClient = new McpWebSocketClient(_commandQueue, _externalEvent);
         _handler.SetWebSocketClient(_webSocketClient);
-        _webSocketClient.Start();
+        if (McpProcessManager.PortIsOpen("127.0.0.1", RevitMcpRuntime.WebSocketPort))
+        {
+            _webSocketClient.Start();
+        }
 
         return Result.Succeeded;
     }
@@ -29,11 +35,23 @@ public sealed class App : IExternalApplication
     public Result OnShutdown(UIControlledApplication application)
     {
         McpLog.Info("Stopping Revit MCP add-in.");
+        _webSocketClient?.Stop();
         RevitMcpRuntime.NgrokProcess.StopOnShutdown();
         RevitMcpRuntime.McpProcess.StopOnShutdown();
         _webSocketClient?.Dispose();
         _externalEvent?.Dispose();
+        _current = null;
         return Result.Succeeded;
+    }
+
+    public static void StartWebSocketClient()
+    {
+        _current?._webSocketClient?.Start();
+    }
+
+    public static void StopWebSocketClient()
+    {
+        _current?._webSocketClient?.Stop();
     }
 
     private static void CreateRibbon(UIControlledApplication application)

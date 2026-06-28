@@ -134,6 +134,8 @@ public sealed class McpProcessManager
     {
         lock (_lockObject)
         {
+            var serverPath = FindServerExecutable();
+
             if (_process is null || _process.HasExited)
             {
                 _process?.Dispose();
@@ -145,17 +147,25 @@ public sealed class McpProcessManager
                     return McpProcessResult.Success($"Stopped MCP server process PID {state.ServerProcessId}.");
                 }
 
+                var stoppedCount = StopMatchingServerProcesses(serverPath);
+                if (stoppedCount > 0)
+                {
+                    ClearServerRuntimeState();
+                    return McpProcessResult.Success($"Stopped {stoppedCount} stale MCP server process(es).");
+                }
+
                 ClearServerRuntimeState();
                 return McpProcessResult.Success("No MCP server process started by this Revit session was found.");
             }
 
             try
             {
-                _process.Kill();
+                KillProcessTree(_process);
                 _process.WaitForExit(3000);
                 McpLog.Info("Stopped MCP server process started by this Revit session.");
                 _process.Dispose();
                 _process = null;
+                StopMatchingServerProcesses(serverPath);
                 ClearServerRuntimeState();
                 return McpProcessResult.Success("MCP server stopped.");
             }
@@ -175,7 +185,7 @@ public sealed class McpProcessManager
             {
                 try
                 {
-                    _process.Kill();
+                    KillProcessTree(_process);
                     _process.WaitForExit(1500);
                     McpLog.Info("Stopped MCP server during Revit shutdown.");
                 }
@@ -190,6 +200,25 @@ public sealed class McpProcessManager
                     ClearServerRuntimeState();
                 }
             }
+
+            var serverPath = FindServerExecutable();
+            var state = RevitMcpRuntime.LoadRuntimeState();
+            if (TryStopRuntimeProcess(state.ServerProcessId, state.ServerPath))
+            {
+                McpLog.Info($"Stopped MCP server process PID {state.ServerProcessId} during Revit shutdown.");
+                ClearServerRuntimeState();
+                return;
+            }
+
+            var stoppedCount = StopMatchingServerProcesses(serverPath);
+            if (stoppedCount > 0)
+            {
+                McpLog.Info($"Stopped {stoppedCount} stale MCP server process(es) during Revit shutdown.");
+                ClearServerRuntimeState();
+                return;
+            }
+
+            ClearServerRuntimeState();
         }
     }
 
@@ -263,7 +292,7 @@ public sealed class McpProcessManager
 
             try
             {
-                process.Kill();
+                KillProcessTree(process);
                 process.WaitForExit(2000);
                 McpLog.Info($"Stopped stale MCP server process PID {state.ServerProcessId}.");
                 ClearServerRuntimeState();
@@ -293,7 +322,7 @@ public sealed class McpProcessManager
 
                 try
                 {
-                    process.Kill();
+                    KillProcessTree(process);
                     process.WaitForExit(2000);
                     McpLog.Info($"Stopped orphan RevitMcpServer.exe sibling PID {process.Id}; keeping PID {keepProcessId}.");
                 }
@@ -327,7 +356,7 @@ public sealed class McpProcessManager
 
             try
             {
-                process.Kill();
+                KillProcessTree(process);
                 process.WaitForExit(3000);
                 return true;
             }
@@ -336,6 +365,63 @@ public sealed class McpProcessManager
                 McpLog.Error($"Could not stop runtime MCP process PID {processId}.", ex);
                 return false;
             }
+        }
+    }
+
+    private static int StopMatchingServerProcesses(string? expectedServerPath)
+    {
+        var expectedPath = expectedServerPath ?? "";
+        var stopped = 0;
+        foreach (var process in Process.GetProcessesByName("RevitMcpServer"))
+        {
+            using (process)
+            {
+                if (process.HasExited)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(expectedPath) && !SamePath(SafeProcessPath(process), expectedPath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    KillProcessTree(process);
+                    process.WaitForExit(3000);
+                    stopped++;
+                    McpLog.Info($"Stopped stale RevitMcpServer.exe process PID {process.Id}.");
+                }
+                catch (Exception ex)
+                {
+                    McpLog.Error($"Could not stop stale RevitMcpServer.exe process PID {process.Id}.", ex);
+                }
+            }
+        }
+
+        return stopped;
+    }
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            using var taskkill = Process.Start(new ProcessStartInfo
+            {
+                FileName = "taskkill.exe",
+                Arguments = $"/PID {process.Id} /T /F",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            });
+            taskkill?.WaitForExit(3000);
+        }
+        catch (Exception ex)
+        {
+            McpLog.Error($"Could not stop process tree for PID {process.Id}; falling back to direct kill.", ex);
+            process.Kill();
         }
     }
 

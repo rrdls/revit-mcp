@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Revit MCP conecta clientes MCP ao Autodesk Revit para consultar contexto do projeto e executar automacoes C# dentro do Revit."
+      content="Revit MCP conecta clientes MCP ao Autodesk Revit para consultar contexto do projeto e executar automações C# dentro do Revit."
     />
     <title>Revit MCP</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="site-header">
-      <nav class="nav" aria-label="Navegacao principal">
+      <nav class="nav" aria-label="Navegação principal">
         <a class="brand" href="#top">
           <span class="brand-mark" aria-hidden="true"></span>
           Revit MCP
@@ -33,13 +33,13 @@
           <p class="eyebrow">Autodesk Revit · MCP local · Windows</p>
           <h1>Revit MCP</h1>
           <p class="lede">
-            Conecte assistentes compativeis com MCP ao Autodesk Revit para consultar o projeto ativo, inspecionar
-            elementos e executar automacoes C# no contexto correto do Revit.
+            Conecte assistentes compatíveis com MCP ao Autodesk Revit para consultar o projeto ativo, inspecionar
+            elementos e executar automações C# no contexto correto do Revit.
           </p>
           <div class="release-row" aria-label="Ambiente suportado">
             <span>Add-in Revit</span>
             <span>Servidor MCP local</span>
-            <span>Automacao C#</span>
+            <span>Automação C#</span>
           </div>
           <div class="hero-actions" id="download">
             <a class="button primary" href="https://github.com/rrdls/revit-mcp/releases" rel="noreferrer">
@@ -82,8 +82,8 @@
           <p class="eyebrow">Fluxo recomendado</p>
           <h2>Instale o add-in, abra o Revit e suba o MCP pelo launcher.</h2>
           <p>
-            O add-in roda dentro do Revit e recebe comandos do servidor local. O launcher deixa o fluxo visivel para
-            quem vai usar: iniciar servidor, publicar URL quando necessario e validar a conexao.
+            O add-in roda dentro do Revit e recebe comandos do servidor local. O launcher deixa o fluxo visível para
+            quem vai usar: iniciar servidor, publicar URL quando necessário e validar a conexão.
           </p>
         </div>
         <div class="steps">
@@ -95,7 +95,7 @@
           <article>
             <span>2</span>
             <h3>Abra o Revit</h3>
-            <p>Reinicie o Revit depois da instalacao para carregar o arquivo <code>.addin</code>.</p>
+            <p>Reinicie o Revit depois da instalação para carregar o arquivo <code>.addin</code>.</p>
           </article>
           <article>
             <span>3</span>
@@ -113,20 +113,20 @@
       <section class="band muted-band" id="capabilities">
         <div class="section-head">
           <p class="eyebrow">Uso ideal</p>
-          <h2>Feito para automacao real no modelo Revit.</h2>
+          <h2>Feito para automação real no modelo Revit.</h2>
         </div>
         <div class="feature-grid">
           <article>
             <h3>Contexto do projeto</h3>
-            <p>Leia versao do Revit, documento ativo, caminho do arquivo e estado basico da conexao.</p>
+            <p>Leia versão do Revit, documento ativo, caminho do arquivo e estado básico da conexão.</p>
           </article>
           <article>
             <h3>Consulta de elementos</h3>
-            <p>Liste niveis, vistas, paredes, tipos, familias, parametros e quantidades do modelo.</p>
+            <p>Liste níveis, vistas, paredes, tipos, famílias, parâmetros e quantidades do modelo.</p>
           </article>
           <article>
-            <h3>Execucao por ExternalEvent</h3>
-            <p>Rode snippets C# no processo do Revit, com transacoes quando a automacao altera o modelo.</p>
+            <h3>Execução por ExternalEvent</h3>
+            <p>Rode snippets C# no processo do Revit, com transações quando a automação altera o modelo.</p>
           </article>
         </div>
       </section>
@@ -134,10 +134,10 @@
       <section class="band" id="example">
         <div class="split">
           <div>
-            <p class="eyebrow">Exemplo pratico</p>
-            <h2>A IA pode transformar um pedido em uma acao no Revit.</h2>
+            <p class="eyebrow">Exemplo prático</p>
+            <h2>A IA pode transformar um pedido em uma ação no Revit.</h2>
             <p class="lede-small">
-              O usuario pede em linguagem natural. O cliente MCP envia um snippet C# para o add-in, o Revit executa e
+              O usuário pede em linguagem natural. O cliente MCP envia um snippet C# para o add-in, o Revit executa e
               devolve o resultado.
             </p>
           </div>
@@ -153,7 +153,7 @@
     tx.Commit();
 }
 
-return "Automacao concluida.";</pre>
+return "Automação concluída.";</pre>
           </div>
         </div>
       </section>
@@ -166,9 +166,9 @@ return "Automacao concluida.";</pre>
           </div>
           <ul class="limits">
             <li>O servidor MCP local precisa estar rodando antes das chamadas do cliente MCP.</li>
-            <li>Operacoes que modificam o modelo devem usar <code>Transaction</code>.</li>
-            <li>Snippets devem ser pequenos, objetivos e revisaveis antes de executar alteracoes amplas.</li>
-            <li>Use tunnel apenas quando o cliente MCP exigir uma URL publica.</li>
+            <li>Operações que modificam o modelo devem usar <code>Transaction</code>.</li>
+            <li>Snippets devem ser pequenos, objetivos e revisáveis antes de executar alterações amplas.</li>
+            <li>Use tunnel apenas quando o cliente MCP exigir uma URL pública.</li>
           </ul>
         </div>
       </section>

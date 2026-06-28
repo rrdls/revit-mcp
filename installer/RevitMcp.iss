@@ -34,6 +34,13 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Type: filesandordirs; Name: "{localappdata}\RevitMcp"
 
 [Code]
+procedure StopProcessByImageName(const ImageName: string);
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /IM "' + ImageName + '" /T /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 function AddinXml(const AssemblyPath: string): string;
 begin
   Result :=
@@ -71,6 +78,12 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then
+  begin
+    StopProcessByImageName('RevitMcpServer.exe');
+    StopProcessByImageName('ngrok.exe');
+  end;
+
   if CurStep = ssPostInstall then
   begin
     InstallAddinForVersion('2021');

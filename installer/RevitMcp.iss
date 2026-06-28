@@ -30,9 +30,6 @@ Name: "{userdesktop}\Revit MCP"; Filename: "{app}\app\RevitMcpLauncher.exe"; Tas
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
-[Run]
-Filename: "{app}\app\RevitMcpLauncher.exe"; Description: "Launch Revit MCP"; Flags: nowait postinstall skipifsilent
-
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\RevitMcp"
 

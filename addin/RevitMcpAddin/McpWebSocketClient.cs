@@ -18,7 +18,6 @@ public sealed class McpWebSocketClient : IDisposable
     private readonly ConcurrentQueue<RevitCommandRequest> _commandQueue;
     private readonly ExternalEvent _externalEvent;
     private readonly Uri _serverUri;
-    private readonly string? _token;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
 
@@ -31,7 +30,6 @@ public sealed class McpWebSocketClient : IDisposable
         _externalEvent = externalEvent;
         var url = Environment.GetEnvironmentVariable("REVIT_MCP_WS_URL") ?? "ws://127.0.0.1:8765";
         _serverUri = new Uri(url);
-        _token = Environment.GetEnvironmentVariable("REVIT_MCP_TOKEN");
     }
 
     public void Start()
@@ -105,7 +103,13 @@ public sealed class McpWebSocketClient : IDisposable
 
     private async Task SendHelloAsync(ClientWebSocket socket)
     {
-        var hello = JsonSerializer.Serialize(new { type = "hello", token = _token }, JsonOptions);
+        var token = Environment.GetEnvironmentVariable("REVIT_MCP_TOKEN");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = RevitMcpRuntime.LoadSettings().McpAuthToken;
+        }
+
+        var hello = JsonSerializer.Serialize(new { type = "hello", token }, JsonOptions);
         var buffer = Encoding.UTF8.GetBytes(hello);
         await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, _cts.Token).ConfigureAwait(false);
     }

@@ -66,23 +66,22 @@ This is the intended final experience once an installer release is published.
 1. Download `RevitMcpSetup.exe` from Releases.
 2. Run the installer.
 3. Open or restart Revit.
-4. Open the `Revit MCP` app from the Start Menu.
+4. In Revit, open the `Revit MCP` ribbon panel.
 5. Click `Start MCP`.
-6. Click `Start Tunnel`.
-7. Copy the URL shown by the app. It should end with:
+6. Click `Copy Local URL`. It should copy:
 
 ```text
-/mcp
+http://127.0.0.1:8000/mcp
 ```
 
-8. Add that MCP URL in ChatGPT.
-9. Test with:
+7. Add that MCP URL in your MCP client.
+8. Test with:
 
 ```csharp
 return doc.Title;
 ```
 
-If something fails, open logs from the launcher or check:
+If something fails, use `Open Logs` in the `Revit MCP` ribbon panel or check:
 
 ```text
 %LOCALAPPDATA%\RevitMcp\addin.log
@@ -228,9 +227,9 @@ Terminal 2:
 The release plan is:
 
 ```text
-RevitMcpLauncher.exe -> user-facing app
+RevitMcpLauncher.exe -> fallback/dev launcher
 RevitMcpServer.exe   -> hidden MCP server
-cloudflared.exe      -> bundled temporary tunnel
+cloudflared.exe      -> legacy temporary tunnel helper
 Revit add-in DLLs    -> one folder per Revit version
 Inno Setup installer -> installs app and writes .addin files
 ```
@@ -331,9 +330,17 @@ docs\styles.css
 
 In GitHub Pages, set the source to the `docs` folder on the default branch.
 
-## Launcher Behavior
+## Revit Ribbon Behavior
 
-The launcher hides the MCP details from regular users:
+The primary user flow is now inside Revit. The `Revit MCP` ribbon panel:
+
+- starts `RevitMcpServer.exe`;
+- stops the server process started by the current Revit session;
+- copies the local MCP URL;
+- opens the logs/settings folder;
+- shows basic connection status.
+
+The external launcher remains installed as a fallback/development tool:
 
 - starts `RevitMcpServer.exe`;
 - starts `cloudflared` or `ngrok` if available;

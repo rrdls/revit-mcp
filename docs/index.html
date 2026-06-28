@@ -38,7 +38,7 @@
           </p>
           <div class="release-row" aria-label="Ambiente suportado">
             <span>Add-in Revit</span>
-            <span>Servidor MCP local</span>
+            <span>Ribbon integrado</span>
             <span>Automação C#</span>
           </div>
           <div class="hero-actions" id="download">
@@ -54,7 +54,7 @@
         <div class="product-panel" aria-label="Fluxo visual do Revit MCP">
           <div class="window-bar">
             <span></span>
-            <strong>Revit MCP Launcher</strong>
+            <strong>Revit MCP Ribbon</strong>
           </div>
           <div class="launcher-grid">
             <div class="launcher-status">
@@ -66,7 +66,7 @@
               Revit add-in: connected
             </div>
             <div class="launcher-button">Start MCP</div>
-            <div class="launcher-button">Start Tunnel</div>
+            <div class="launcher-button">Copy Local URL</div>
           </div>
           <pre class="terminal-output">get_revit_context
 {
@@ -80,10 +80,10 @@
       <section class="band" id="workflow">
         <div class="section-head">
           <p class="eyebrow">Fluxo recomendado</p>
-          <h2>Instale o add-in, abra o Revit e suba o MCP pelo launcher.</h2>
+          <h2>Instale o add-in, abra o Revit e suba o MCP pelo próprio Ribbon.</h2>
           <p>
-            O add-in roda dentro do Revit e recebe comandos do servidor local. O launcher deixa o fluxo visível para
-            quem vai usar: iniciar servidor, publicar URL quando necessário e validar a conexão.
+            O add-in roda dentro do Revit e recebe comandos do servidor local. O painel <code>Revit MCP</code> no
+            Ribbon deixa o fluxo visível para quem vai usar: iniciar servidor, copiar URL e validar a conexão.
           </p>
         </div>
         <div class="steps">
@@ -100,7 +100,7 @@
           <article>
             <span>3</span>
             <h3>Inicie o MCP</h3>
-            <p>No launcher, clique em <code>Start MCP</code> e use a URL <code>http://127.0.0.1:8000/mcp</code>.</p>
+            <p>No Ribbon <code>Revit MCP</code>, clique em <code>Start MCP</code> e use a URL <code>http://127.0.0.1:8000/mcp</code>.</p>
           </article>
           <article>
             <span>4</span>
@@ -168,7 +168,7 @@ return "Automação concluída.";</pre>
             <li>O servidor MCP local precisa estar rodando antes das chamadas do cliente MCP.</li>
             <li>Operações que modificam o modelo devem usar <code>Transaction</code>.</li>
             <li>Snippets devem ser pequenos, objetivos e revisáveis antes de executar alterações amplas.</li>
-            <li>Use tunnel apenas quando o cliente MCP exigir uma URL pública.</li>
+            <li>Use URL pública fixa apenas depois de configurar ngrok e autenticação no painel de settings.</li>
           </ul>
         </div>
       </section>

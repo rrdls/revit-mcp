@@ -5,264 +5,178 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Revit MCP conecta assistentes IA compatíveis com MCP ao Autodesk Revit com instalação local, add-in Revit e servidor MCP controlado por uma interface simples."
+      content="Revit MCP conecta clientes MCP ao Autodesk Revit para consultar contexto do projeto e executar automacoes C# dentro do Revit."
     />
     <title>Revit MCP</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="hero" id="top">
-      <div class="scanlines" aria-hidden="true"></div>
-      <nav class="nav" aria-label="Navegação principal">
+    <header class="site-header">
+      <nav class="nav" aria-label="Navegacao principal">
         <a class="brand" href="#top">
-          <span class="status-dot" aria-hidden="true"></span>
+          <span class="brand-mark" aria-hidden="true"></span>
           Revit MCP
         </a>
         <div class="nav-links">
-          <a href="#why">Por que</a>
-          <a href="#power">Poder</a>
-          <a href="#how">Fluxo</a>
-          <a href="#install">Instalar</a>
-          <a href="#test">Teste</a>
+          <a href="#workflow">Fluxo</a>
+          <a href="#capabilities">Recursos</a>
           <a href="#example">Exemplo</a>
+          <a href="#download">Download</a>
           <a href="https://github.com/rrdls/revit-mcp" rel="noreferrer">GitHub</a>
         </div>
       </nav>
-
-      <section class="hero-grid">
-        <div class="hero-copy">
-          <p class="eyebrow">[ local-first · revit automation · mcp ]</p>
-          <h1>
-            <span class="prompt">$</span> conecte
-            <span class="accent">IA ao Revit</span><span class="cursor" aria-hidden="true"></span>
-          </h1>
-          <p class="lead">
-            Um instalador local coloca o add-in no Revit, sobe o servidor MCP e gera a URL para usar em ChatGPT, Claude, Gemini ou outro cliente compatível com MCP.
-          </p>
-          <div class="hero-actions">
-            <a class="button primary" href="#install">Ver instalação</a>
-            <a class="button secondary" href="https://github.com/rrdls/revit-mcp" rel="noreferrer">GitHub</a>
-          </div>
-        </div>
-
-        <div class="terminal-visual" aria-label="Demonstração visual do Revit MCP">
-          <div class="terminal-bar">
-            <span>~/revit-mcp/session</span>
-            <span class="terminal-live">● connected</span>
-          </div>
-          <div class="terminal-body">
-            <p><span class="green">revit-mcp</span> start</p>
-            <p class="muted">MCP HTTP: http://127.0.0.1:8000/mcp</p>
-            <p class="muted">Revit bridge: ws://127.0.0.1:8765</p>
-            <p><span class="blue">tool</span> get_revit_context</p>
-            <pre>{
-  "revitVersion": "2024",
-  "documentTitle": "Projeto.rvt",
-  "connected": true
-}</pre>
-            <p><span class="blue">tool</span> run_revit_code</p>
-            <pre>return doc.Title;</pre>
-          </div>
-        </div>
-      </section>
     </header>
 
-    <main>
-      <section class="band" id="why">
-        <div class="section-head">
-          <p class="eyebrow">[ por que existe ]</p>
-          <h2>Automação no Revit sem pedir para o usuário abrir terminal.</h2>
-        </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <span class="card-index">01</span>
-            <h3>Add-in instalado</h3>
-            <p>O instalador cria o arquivo `.addin` certo para a versão do Revit detectada.</p>
-          </article>
-          <article class="feature-card">
-            <span class="card-index">02</span>
-            <h3>MCP escondido</h3>
-            <p>O launcher sobe o servidor local e mostra apenas a URL que o usuário precisa copiar.</p>
-          </article>
-          <article class="feature-card">
-            <span class="card-index">03</span>
-            <h3>Execução segura no contexto Revit</h3>
-            <p>O código entra por fila, passa por `ExternalEvent` e roda no processo correto do Revit.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="band power-section" id="power">
-        <div class="section-head">
-          <p class="eyebrow">[ o que ele consegue fazer ]</p>
-          <h2>Seu assistente IA passa instruções para o Revit. O Revit executa de verdade.</h2>
-          <p class="section-copy">
-            Depois de conectado, você pode pedir para listar informações, criar elementos, editar parâmetros, contar objetos, gerar paredes, portas, janelas e outras automações usando a API do Revit.
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Autodesk Revit · MCP local · Windows</p>
+          <h1>Revit MCP</h1>
+          <p class="lede">
+            Conecte assistentes compativeis com MCP ao Autodesk Revit para consultar o projeto ativo, inspecionar
+            elementos e executar automacoes C# no contexto correto do Revit.
           </p>
+          <div class="release-row" aria-label="Ambiente suportado">
+            <span>Add-in Revit</span>
+            <span>Servidor MCP local</span>
+            <span>Automacao C#</span>
+          </div>
+          <div class="hero-actions" id="download">
+            <a class="button primary" href="https://github.com/rrdls/revit-mcp/releases" rel="noreferrer">
+              Baixar instalador
+            </a>
+            <a class="button secondary" href="https://github.com/rrdls/revit-mcp" rel="noreferrer">
+              Ver GitHub
+            </a>
+          </div>
         </div>
 
-        <div class="power-grid">
-          <article class="capability">
-            <span>listar</span>
-            <p>Níveis, paredes, vistas, famílias, tipos, parâmetros e quantidades.</p>
-          </article>
-          <article class="capability">
-            <span>criar</span>
-            <p>Paredes, linhas, pisos, instâncias de famílias e outros elementos via transação.</p>
-          </article>
-          <article class="capability">
-            <span>editar</span>
-            <p>Alterar parâmetros, nomes, tipos, posições e propriedades do modelo.</p>
-          </article>
+        <div class="product-panel" aria-label="Fluxo visual do Revit MCP">
+          <div class="window-bar">
+            <span></span>
+            <strong>Revit MCP Launcher</strong>
+          </div>
+          <div class="launcher-grid">
+            <div class="launcher-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              MCP server: running
+            </div>
+            <div class="launcher-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              Revit add-in: connected
+            </div>
+            <div class="launcher-button">Start MCP</div>
+            <div class="launcher-button">Start Tunnel</div>
+          </div>
+          <pre class="terminal-output">get_revit_context
+{
+  "connected": true,
+  "revitVersion": "2024",
+  "documentTitle": "Projeto.rvt"
+}</pre>
         </div>
       </section>
 
-      <section class="band split" id="how">
+      <section class="band" id="workflow">
         <div class="section-head">
-          <p class="eyebrow">[ fluxo ]</p>
-          <h2>O usuário vê uma URL. O sistema cuida do resto.</h2>
-        </div>
-        <ol class="flow-list">
-          <li>
-            <span>01</span>
-            <p>O assistente IA chama a tool MCP.</p>
-          </li>
-          <li>
-            <span>02</span>
-            <p>Servidor MCP local encaminha o comando para o add-in.</p>
-          </li>
-          <li>
-            <span>03</span>
-            <p>Revit executa o C# via `ExternalEvent` e Roslyn.</p>
-          </li>
-          <li>
-            <span>04</span>
-            <p>A resposta volta para o assistente IA.</p>
-          </li>
-        </ol>
-      </section>
-
-      <section class="band install" id="install">
-        <div class="section-head">
-          <p class="eyebrow">[ tutorial leigo ]</p>
-          <h2>Instalação pensada para quem não programa.</h2>
+          <p class="eyebrow">Fluxo recomendado</p>
+          <h2>Instale o add-in, abra o Revit e suba o MCP pelo launcher.</h2>
+          <p>
+            O add-in roda dentro do Revit e recebe comandos do servidor local. O launcher deixa o fluxo visivel para
+            quem vai usar: iniciar servidor, publicar URL quando necessario e validar a conexao.
+          </p>
         </div>
         <div class="steps">
           <article>
-            <strong>1</strong>
-            <h3>Baixe o instalador</h3>
-            <p>Use o `RevitMcpSetup.exe` publicado no GitHub Releases.</p>
-            <a class="inline-link" href="https://github.com/rrdls/revit-mcp/releases" rel="noreferrer">
-              Abrir página de download
-            </a>
+            <span>1</span>
+            <h3>Instale</h3>
+            <p>Execute <code>RevitMcpSetup.exe</code> publicado no GitHub Releases.</p>
           </article>
           <article>
-            <strong>2</strong>
+            <span>2</span>
             <h3>Abra o Revit</h3>
-            <p>Reinicie o Revit depois de instalar para carregar o add-in.</p>
+            <p>Reinicie o Revit depois da instalacao para carregar o arquivo <code>.addin</code>.</p>
           </article>
           <article>
-            <strong>3</strong>
-            <h3>Inicie o Revit MCP</h3>
-            <p>Clique em `Start MCP`, depois em `Start Tunnel`.</p>
+            <span>3</span>
+            <h3>Inicie o MCP</h3>
+            <p>No launcher, clique em <code>Start MCP</code> e use a URL <code>http://127.0.0.1:8000/mcp</code>.</p>
           </article>
           <article>
-            <strong>4</strong>
-            <h3>Copie a URL</h3>
-            <p>Cole a URL terminada em `/mcp` no cliente MCP do seu assistente IA.</p>
+            <span>4</span>
+            <h3>Valide</h3>
+            <p>Chame <code>get_revit_context</code> e confirme que o projeto ativo aparece na resposta.</p>
           </article>
         </div>
       </section>
 
-      <section class="band command-band" id="test">
+      <section class="band muted-band" id="capabilities">
         <div class="section-head">
-          <p class="eyebrow">[ teste de conexão ]</p>
-          <h2>O primeiro teste só pergunta ao Revit qual projeto está aberto.</h2>
-          <p class="section-copy">
-            Depois de conectar seu assistente IA, peça para ele fazer um teste simples. Ele vai enviar o comando abaixo para o Revit. Se a resposta for o nome do seu arquivo, a conexão está funcionando.
-          </p>
+          <p class="eyebrow">Uso ideal</p>
+          <h2>Feito para automacao real no modelo Revit.</h2>
         </div>
-        <div class="terminal-wide">
-          <div class="terminal-bar">
-            <span>mensagem para o assistente IA</span>
-            <span class="terminal-live">teste seguro</span>
-          </div>
-          <pre>Use o Revit MCP para executar este teste:
-
-return doc.Title;</pre>
-        </div>
-        <div class="result-note">
-          <span class="status-dot" aria-hidden="true"></span>
-          Resultado esperado: o assistente IA responde com o nome do projeto aberto no Revit.
+        <div class="feature-grid">
+          <article>
+            <h3>Contexto do projeto</h3>
+            <p>Leia versao do Revit, documento ativo, caminho do arquivo e estado basico da conexao.</p>
+          </article>
+          <article>
+            <h3>Consulta de elementos</h3>
+            <p>Liste niveis, vistas, paredes, tipos, familias, parametros e quantidades do modelo.</p>
+          </article>
+          <article>
+            <h3>Execucao por ExternalEvent</h3>
+            <p>Rode snippets C# no processo do Revit, com transacoes quando a automacao altera o modelo.</p>
+          </article>
         </div>
       </section>
 
-      <section class="band wall-example" id="example">
-        <div class="section-head">
-          <p class="eyebrow">[ exemplo avançado ]</p>
-          <h2>Exemplo: pedir para a IA criar uma parede.</h2>
-          <p class="section-copy">
-            O usuário escreve um pedido simples. O assistente IA transforma isso em C# compatível com o executor. O add-in abre uma transação no Revit, cria a parede e devolve uma confirmação.
-          </p>
-        </div>
-
-        <div class="example-grid">
-          <div class="terminal-wide">
-            <div class="terminal-bar">
-              <span>pedido do usuário</span>
-              <span class="terminal-live">linguagem natural</span>
-            </div>
-            <pre>Crie uma parede reta de 10 metros no primeiro nível do projeto.</pre>
+      <section class="band" id="example">
+        <div class="split">
+          <div>
+            <p class="eyebrow">Exemplo pratico</p>
+            <h2>A IA pode transformar um pedido em uma acao no Revit.</h2>
+            <p class="lede-small">
+              O usuario pede em linguagem natural. O cliente MCP envia um snippet C# para o add-in, o Revit executa e
+              devolve o resultado.
+            </p>
           </div>
-
-          <div class="terminal-wide">
-            <div class="terminal-bar">
-              <span>código enviado para run_revit_code</span>
-              <span class="terminal-live">C# Revit API</span>
+          <div class="example-panel">
+            <div class="window-bar">
+              <span></span>
+              <strong>run_revit_code</strong>
             </div>
-            <pre class="code-block"><span class="kw">using</span> (<span class="kw">var</span> tx = <span class="kw">new</span> <span class="type">Transaction</span>(doc, <span class="str">"Criar parede via Revit MCP"</span>))
+            <pre class="terminal-output">using (var tx = new Transaction(doc, "Criar parede"))
 {
-    tx.<span class="fn">Start</span>();
-
-    <span class="kw">var</span> level = <span class="kw">new</span> <span class="type">FilteredElementCollector</span>(doc)
-        .<span class="fn">OfClass</span>(<span class="kw">typeof</span>(<span class="type">Level</span>))
-        .<span class="fn">Cast</span>&lt;<span class="type">Level</span>&gt;()
-        .<span class="fn">First</span>();
-
-    <span class="kw">var</span> wallType = <span class="kw">new</span> <span class="type">FilteredElementCollector</span>(doc)
-        .<span class="fn">OfClass</span>(<span class="kw">typeof</span>(<span class="type">WallType</span>))
-        .<span class="fn">Cast</span>&lt;<span class="type">WallType</span>&gt;()
-        .<span class="fn">First</span>();
-
-    <span class="kw">var</span> line = <span class="type">Line</span>.<span class="fn">CreateBound</span>(<span class="kw">new</span> <span class="type">XYZ</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>), <span class="kw">new</span> <span class="type">XYZ</span>(<span class="num">10</span>, <span class="num">0</span>, <span class="num">0</span>));
-    <span class="type">Wall</span>.<span class="fn">Create</span>(doc, line, wallType.Id, level.Id, <span class="num">3</span>, <span class="num">0</span>, <span class="kw">false</span>, <span class="kw">false</span>);
-
-    tx.<span class="fn">Commit</span>();
+    tx.Start();
+    // Revit API: cria ou altera elementos aqui.
+    tx.Commit();
 }
 
-<span class="kw">return</span> <span class="str">"Parede criada."</span>;</pre>
-          </div>
-
-          <div class="wall-result">
-            <div class="wall-scene" aria-hidden="true">
-              <div class="grid-floor"></div>
-              <div class="wall-3d"></div>
-              <div class="axis x-axis">10m</div>
-              <div class="axis z-axis">3m</div>
-            </div>
-            <div class="result-note">
-              <span class="status-dot" aria-hidden="true"></span>
-              Resultado esperado: uma parede aparece no modelo aberto do Revit.
-            </div>
+return "Automacao concluida.";</pre>
           </div>
         </div>
       </section>
 
+      <section class="band">
+        <div class="split">
+          <div>
+            <p class="eyebrow">Limites atuais</p>
+            <h2>O fluxo precisa do Revit aberto e do add-in carregado.</h2>
+          </div>
+          <ul class="limits">
+            <li>O servidor MCP local precisa estar rodando antes das chamadas do cliente MCP.</li>
+            <li>Operacoes que modificam o modelo devem usar <code>Transaction</code>.</li>
+            <li>Snippets devem ser pequenos, objetivos e revisaveis antes de executar alteracoes amplas.</li>
+            <li>Use tunnel apenas quando o cliente MCP exigir uma URL publica.</li>
+          </ul>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
-      <span><span class="status-dot" aria-hidden="true"></span> Revit MCP</span>
-      <a href="#top">voltar ao topo</a>
+      <span>Revit MCP</span>
+      <a href="https://github.com/rrdls/revit-mcp" rel="noreferrer">github.com/rrdls/revit-mcp</a>
     </footer>
   </body>
 </html>

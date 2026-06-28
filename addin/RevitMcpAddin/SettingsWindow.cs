@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Diagnostics;
 
 namespace RevitMcpAddin;
 
@@ -67,14 +68,29 @@ public sealed class SettingsWindow : Window
         AddRow(form, 1, "ngrok domain", _ngrokDomain);
         AddRow(form, 2, "MCP auth token", _mcpAuthToken);
 
+        var tools = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 16, 0, 0)
+        };
+        Grid.SetColumn(tools, 1);
+        Grid.SetRow(tools, 3);
+
+        tools.Children.Add(ActionButton("Generate secret", (_, _) => GenerateSecret()));
+        tools.Children.Add(ActionButton("Copy local URL", (_, _) => CopyLocalUrl()));
+        tools.Children.Add(ActionButton("Copy public URL", (_, _) => CopyPublicUrl()));
+        tools.Children.Add(ActionButton("ngrok dashboard", (_, _) => OpenNgrokDashboard()));
+        form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        form.Children.Add(tools);
+
         var note = new TextBlock
         {
-            Text = "The ngrok fields are stored now for the fixed public URL flow. Public URL start/stop will be enabled after MCP HTTP authentication is enforced.",
+            Text = "Changing the MCP auth token changes both local and public MCP URLs. Update your MCP client after changing it.",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 18, 0, 0)
         };
         Grid.SetColumnSpan(note, 2);
-        Grid.SetRow(note, 3);
+        Grid.SetRow(note, 4);
         form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         form.Children.Add(note);
 
@@ -104,7 +120,7 @@ public sealed class SettingsWindow : Window
 
     private void Save()
     {
-        var domain = NormalizeDomain(_ngrokDomain.Text);
+        var domain = RevitMcpRuntime.NormalizeDomain(_ngrokDomain.Text);
 
         var settings = new RevitMcpSettings
         {
@@ -120,18 +136,55 @@ public sealed class SettingsWindow : Window
         Close();
     }
 
-    private static string NormalizeDomain(string value)
+    private static Button ActionButton(string text, RoutedEventHandler onClick)
     {
-        var domain = value.Trim();
-        if (domain.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        var button = new Button
         {
-            domain = domain.Substring("https://".Length);
-        }
-        else if (domain.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            domain = domain.Substring("http://".Length);
-        }
+            Content = text,
+            Margin = new Thickness(0, 0, 8, 0),
+            Padding = new Thickness(8, 4, 8, 4)
+        };
+        button.Click += onClick;
+        return button;
+    }
 
-        return domain.TrimEnd('/');
+    private void GenerateSecret()
+    {
+        _mcpAuthToken.Text = Guid.NewGuid().ToString("N");
+    }
+
+    private void CopyLocalUrl()
+    {
+        Clipboard.SetText(RevitMcpRuntime.BuildLocalMcpUrl(CurrentSettings()));
+    }
+
+    private void CopyPublicUrl()
+    {
+        var publicUrl = RevitMcpRuntime.BuildPublicMcpUrl(CurrentSettings());
+        if (!string.IsNullOrWhiteSpace(publicUrl))
+        {
+            Clipboard.SetText(publicUrl);
+        }
+    }
+
+    private static void OpenNgrokDashboard()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://dashboard.ngrok.com/domains",
+            UseShellExecute = true
+        });
+    }
+
+    private RevitMcpSettings CurrentSettings()
+    {
+        return new RevitMcpSettings
+        {
+            NgrokAuthToken = _ngrokAuthToken.Text.Trim(),
+            NgrokDomain = RevitMcpRuntime.NormalizeDomain(_ngrokDomain.Text),
+            McpAuthToken = string.IsNullOrWhiteSpace(_mcpAuthToken.Text)
+                ? Guid.NewGuid().ToString("N")
+                : _mcpAuthToken.Text.Trim()
+        };
     }
 }

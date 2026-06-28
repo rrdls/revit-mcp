@@ -1,6 +1,7 @@
 param(
     [string]$PackageRoot = "",
-    [switch]$RequireAddin
+    [switch]$RequireAddin,
+    [switch]$RequireNgrok
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +15,10 @@ $requiredFiles = @(
     "app\RevitMcpServer.exe",
     "app\RevitMcpLauncher.exe"
 )
+
+if ($RequireNgrok) {
+    $requiredFiles += "app\ngrok.exe"
+}
 
 foreach ($relativePath in $requiredFiles) {
     $path = Join-Path $PackageRoot $relativePath
@@ -35,4 +40,3 @@ if ($RequireAddin -and $addinDlls.Count -eq 0) {
 Write-Host "Release layout OK:"
 Write-Host "  $PackageRoot"
 Write-Host "Add-in DLLs found: $($addinDlls.Count)"
-

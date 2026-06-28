@@ -6,7 +6,6 @@ namespace RevitMcpAddin;
 
 public static class RevitMcpRuntime
 {
-    public const string LocalMcpUrl = "http://127.0.0.1:8000/mcp";
     public const int HttpPort = 8000;
     public const int WebSocketPort = 8765;
 
@@ -14,6 +13,7 @@ public static class RevitMcpRuntime
 
     public static string RevitVersion { get; private set; } = "";
     public static McpProcessManager McpProcess { get; } = new();
+    public static NgrokProcessManager NgrokProcess { get; } = new();
 
     public static string AppDataDirectory
     {
@@ -28,6 +28,36 @@ public static class RevitMcpRuntime
     }
 
     public static string SettingsPath => Path.Combine(AppDataDirectory, "settings.json");
+    public static string RuntimePath => Path.Combine(AppDataDirectory, "runtime.json");
+    public static string NgrokConfigPath => Path.Combine(AppDataDirectory, "ngrok.yml");
+
+    public static string LocalMcpUrl
+    {
+        get
+        {
+            return BuildLocalMcpUrl(LoadSettings());
+        }
+    }
+
+    public static string BuildMcpPath(RevitMcpSettings settings)
+    {
+        return "/" + settings.EffectiveMcpAuthToken.Trim('/') + "/mcp";
+    }
+
+    public static string BuildLocalMcpUrl(RevitMcpSettings settings)
+    {
+        return "http://127.0.0.1:" + HttpPort + BuildMcpPath(settings);
+    }
+
+    public static string? BuildPublicMcpUrl(RevitMcpSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.NgrokDomain))
+        {
+            return null;
+        }
+
+        return "https://" + NormalizeDomain(settings.NgrokDomain) + BuildMcpPath(settings);
+    }
 
     public static void Initialize(string revitVersion)
     {
@@ -65,6 +95,63 @@ public static class RevitMcpRuntime
         });
     }
 
+    public static RevitMcpRuntimeState LoadRuntimeState()
+    {
+        lock (LockObject)
+        {
+            if (!File.Exists(RuntimePath))
+            {
+                return new RevitMcpRuntimeState();
+            }
+
+            try
+            {
+                var json = File.ReadAllText(RuntimePath);
+                return JsonSerializer.Deserialize<RevitMcpRuntimeState>(json, RevitMcpSettings.JsonOptions) ?? new RevitMcpRuntimeState();
+            }
+            catch
+            {
+                return new RevitMcpRuntimeState();
+            }
+        }
+    }
+
+    public static void SaveRuntimeState(RevitMcpRuntimeState state)
+    {
+        lock (LockObject)
+        {
+            Directory.CreateDirectory(AppDataDirectory);
+            var json = JsonSerializer.Serialize(state, RevitMcpSettings.JsonOptions);
+            File.WriteAllText(RuntimePath, json);
+        }
+    }
+
+    public static void ClearRuntimeState()
+    {
+        lock (LockObject)
+        {
+            if (File.Exists(RuntimePath))
+            {
+                File.Delete(RuntimePath);
+            }
+        }
+    }
+
+    public static string NormalizeDomain(string value)
+    {
+        var domain = value.Trim();
+        if (domain.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            domain = domain.Substring("https://".Length);
+        }
+        else if (domain.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            domain = domain.Substring("http://".Length);
+        }
+
+        return domain.Trim().TrimEnd('/');
+    }
+
     private static void EnsureSettings()
     {
         if (File.Exists(SettingsPath))
@@ -88,6 +175,20 @@ public sealed class RevitMcpSettings
     public string NgrokDomain { get; set; } = "";
     public string McpAuthToken { get; set; } = "";
 
+    public string EffectiveMcpAuthToken
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(McpAuthToken))
+            {
+                return McpAuthToken.Trim();
+            }
+
+            McpAuthToken = Guid.NewGuid().ToString("N");
+            return McpAuthToken;
+        }
+    }
+
     public static RevitMcpSettings CreateDefault()
     {
         return new RevitMcpSettings
@@ -95,4 +196,14 @@ public sealed class RevitMcpSettings
             McpAuthToken = Guid.NewGuid().ToString("N")
         };
     }
+}
+
+public sealed class RevitMcpRuntimeState
+{
+    public int ServerProcessId { get; set; }
+    public string ServerPath { get; set; } = "";
+    public DateTimeOffset ServerStartedAt { get; set; }
+    public int NgrokProcessId { get; set; }
+    public string NgrokPath { get; set; } = "";
+    public DateTimeOffset NgrokStartedAt { get; set; }
 }

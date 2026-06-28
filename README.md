@@ -71,7 +71,7 @@ This is the intended final experience once an installer release is published.
 6. Click `Copy Local URL`. It should copy:
 
 ```text
-http://127.0.0.1:8000/mcp
+http://127.0.0.1:8000/<mcp-secret>/mcp
 ```
 
 7. Add that MCP URL in your MCP client.
@@ -150,13 +150,13 @@ This creates:
 
 ### 4. Start MCP Over HTTP
 
-For ChatGPT/tunnel usage:
+For development without the Revit ribbon:
 
 ```powershell
 .\scripts\run-http-server.ps1
 ```
 
-This starts:
+This starts the development server with the default path:
 
 ```text
 http://127.0.0.1:8000/mcp
@@ -168,30 +168,26 @@ The Revit add-in connects locally to:
 ws://127.0.0.1:8765
 ```
 
-### 5. Start A Tunnel
-
-Example with ngrok:
-
-```powershell
-ngrok http 8000
-```
-
-Use the public URL with `/mcp` appended:
+The Revit ribbon flow starts the packaged server with a secret path:
 
 ```text
-https://your-ngrok-domain.ngrok-free.app/mcp
+http://127.0.0.1:8000/<mcp-secret>/mcp
 ```
 
-Example with Cloudflare Tunnel:
+### 5. Start A Fixed Public URL
 
-```powershell
-cloudflared tunnel --url http://127.0.0.1:8000
-```
+The product flow uses ngrok with the user's ngrok account and fixed domain.
 
-Use:
+In Revit, open `Revit MCP > Settings` and configure:
+
+- `ngrok authtoken`
+- `ngrok domain`
+- `MCP auth token`
+
+Then click `Start Public URL` and `Copy Public URL`.
 
 ```text
-https://your-cloudflare-domain.trycloudflare.com/mcp
+https://your-ngrok-domain.ngrok-free.app/<mcp-secret>/mcp
 ```
 
 ### 6. Test
@@ -229,7 +225,7 @@ The release plan is:
 ```text
 RevitMcpLauncher.exe -> fallback/dev launcher
 RevitMcpServer.exe   -> hidden MCP server
-cloudflared.exe      -> legacy temporary tunnel helper
+ngrok.exe            -> fixed public URL tunnel
 Revit add-in DLLs    -> one folder per Revit version
 Inno Setup installer -> installs app and writes .addin files
 ```
@@ -269,16 +265,16 @@ dist\RevitMcp\addins\2025\RevitMcpAddin.dll
 .\scripts\package-release.ps1
 ```
 
-By default this downloads `cloudflared.exe` into:
+By default this downloads `ngrok.exe` into:
 
 ```text
-dist\RevitMcp\app\cloudflared.exe
+dist\RevitMcp\app\ngrok.exe
 ```
 
 To skip that download:
 
 ```powershell
-.\scripts\package-release.ps1 -SkipCloudflared
+.\scripts\package-release.ps1 -SkipNgrok
 ```
 
 To validate an already-built release layout:
@@ -340,16 +336,22 @@ The primary user flow is now inside Revit. The `Revit MCP` ribbon panel:
 - opens the logs/settings folder;
 - shows basic connection status.
 
+The same panel also:
+
+- starts and stops a fixed public ngrok URL;
+- copies the public MCP URL;
+- stores ngrok settings in `%LOCALAPPDATA%\RevitMcp\settings.json`.
+
 The external launcher remains installed as a fallback/development tool:
 
 - starts `RevitMcpServer.exe`;
-- starts `cloudflared` or `ngrok` if available;
+- starts a temporary tunnel if configured manually;
 - captures the public tunnel URL;
-- appends `/mcp`;
+- appends the MCP path;
 - copies the final URL for ChatGPT;
 - opens the logs folder.
 
-`cloudflared.exe` is downloaded during `package-release.ps1` and installed next to `RevitMcpLauncher.exe`. `ngrok.exe` is optional and is not bundled.
+`ngrok.exe` is downloaded during `package-release.ps1` and installed next to `RevitMcpServer.exe`.
 
 ## Troubleshooting
 
@@ -372,9 +374,9 @@ Also confirm:
 
 Check:
 
-- MCP HTTP server is running on `http://127.0.0.1:8000/mcp`.
+- MCP HTTP server is running. In the ribbon flow, copy the exact URL from `Copy Local URL`.
 - Tunnel points to port `8000`, not `8765`.
-- Public URL ends with `/mcp`.
+- Public URL ends with `/<mcp-secret>/mcp`.
 
 ### Revit Code Fails To Compile
 

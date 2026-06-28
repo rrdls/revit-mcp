@@ -29,7 +29,9 @@ public sealed class McpProcessManager
 
             if (httpOpen && wsOpen)
             {
-                return StartedByAddin ? "MCP server is running and was started by this Revit session." : "MCP server appears to be running.";
+                var state = RevitMcpRuntime.LoadRuntimeState();
+                var pid = state.ServerProcessId > 0 ? $" PID {state.ServerProcessId}." : "";
+                return StartedByAddin ? "MCP server is running and was started by this Revit session." : "MCP server appears to be running." + pid;
             }
 
             if (httpOpen || wsOpen)
@@ -45,6 +47,14 @@ public sealed class McpProcessManager
     {
         lock (_lockObject)
         {
+            var serverPath = FindServerExecutable();
+            if (serverPath is null)
+            {
+                return McpProcessResult.Failure("Could not find RevitMcpServer.exe. Reinstall Revit MCP or build the release package.");
+            }
+
+            CleanupStaleRuntimeProcess(serverPath);
+
             if (_process is { HasExited: false })
             {
                 return McpProcessResult.Success("MCP server is already running from this Revit session.");
@@ -54,18 +64,19 @@ public sealed class McpProcessManager
             var wsOpen = IsPortOpen("127.0.0.1", RevitMcpRuntime.WebSocketPort);
             if (httpOpen && wsOpen)
             {
-                return McpProcessResult.Success("MCP server appears to already be running.");
+                var state = RevitMcpRuntime.LoadRuntimeState();
+                if (state.ServerProcessId > 0)
+                {
+                    CleanupSiblingServerProcesses(serverPath, state.ServerProcessId);
+                    return McpProcessResult.Success($"MCP server is already running on PID {state.ServerProcessId}.");
+                }
+
+                return McpProcessResult.Success("MCP server appears to already be running, but it was not started by this add-in.");
             }
 
             if (httpOpen || wsOpen)
             {
                 return McpProcessResult.Failure($"Cannot start MCP server because ports are partially busy. HTTP {OpenClosed(httpOpen)}, WebSocket {OpenClosed(wsOpen)}.");
-            }
-
-            var serverPath = FindServerExecutable();
-            if (serverPath is null)
-            {
-                return McpProcessResult.Failure("Could not find RevitMcpServer.exe. Reinstall Revit MCP or build the release package.");
             }
 
             var settings = RevitMcpRuntime.LoadSettings();
@@ -81,7 +92,7 @@ public sealed class McpProcessManager
             startInfo.EnvironmentVariables["MCP_TRANSPORT"] = "streamable-http";
             startInfo.EnvironmentVariables["MCP_HTTP_HOST"] = "127.0.0.1";
             startInfo.EnvironmentVariables["MCP_HTTP_PORT"] = RevitMcpRuntime.HttpPort.ToString();
-            startInfo.EnvironmentVariables["MCP_HTTP_PATH"] = "/mcp";
+            startInfo.EnvironmentVariables["MCP_HTTP_PATH"] = RevitMcpRuntime.BuildMcpPath(settings);
             startInfo.EnvironmentVariables["MCP_DISABLE_DNS_REBINDING_PROTECTION"] = "true";
             startInfo.EnvironmentVariables["REVIT_MCP_HOST"] = "127.0.0.1";
             startInfo.EnvironmentVariables["REVIT_MCP_PORT"] = RevitMcpRuntime.WebSocketPort.ToString();
@@ -102,8 +113,13 @@ public sealed class McpProcessManager
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
                 _process = process;
+                var runtimeState = RevitMcpRuntime.LoadRuntimeState();
+                runtimeState.ServerProcessId = process.Id;
+                runtimeState.ServerPath = serverPath;
+                runtimeState.ServerStartedAt = DateTimeOffset.Now;
+                RevitMcpRuntime.SaveRuntimeState(runtimeState);
                 McpLog.Info($"Started MCP server process {process.Id}: {serverPath}");
-                return McpProcessResult.Success("MCP server started.");
+                return McpProcessResult.Success($"MCP server started on PID {process.Id}.");
             }
             catch (Exception ex)
             {
@@ -122,6 +138,14 @@ public sealed class McpProcessManager
             {
                 _process?.Dispose();
                 _process = null;
+                var state = RevitMcpRuntime.LoadRuntimeState();
+                if (TryStopRuntimeProcess(state.ServerProcessId, state.ServerPath))
+                {
+                    ClearServerRuntimeState();
+                    return McpProcessResult.Success($"Stopped MCP server process PID {state.ServerProcessId}.");
+                }
+
+                ClearServerRuntimeState();
                 return McpProcessResult.Success("No MCP server process started by this Revit session was found.");
             }
 
@@ -132,12 +156,39 @@ public sealed class McpProcessManager
                 McpLog.Info("Stopped MCP server process started by this Revit session.");
                 _process.Dispose();
                 _process = null;
+                ClearServerRuntimeState();
                 return McpProcessResult.Success("MCP server stopped.");
             }
             catch (Exception ex)
             {
                 McpLog.Error("Could not stop MCP server.", ex);
                 return McpProcessResult.Failure($"Could not stop MCP server: {ex.Message}");
+            }
+        }
+    }
+
+    public void StopOnShutdown()
+    {
+        lock (_lockObject)
+        {
+            if (_process is { HasExited: false })
+            {
+                try
+                {
+                    _process.Kill();
+                    _process.WaitForExit(1500);
+                    McpLog.Info("Stopped MCP server during Revit shutdown.");
+                }
+                catch (Exception ex)
+                {
+                    McpLog.Error("Could not stop MCP server during Revit shutdown.", ex);
+                }
+                finally
+                {
+                    _process.Dispose();
+                    _process = null;
+                    ClearServerRuntimeState();
+                }
             }
         }
     }
@@ -173,6 +224,166 @@ public sealed class McpProcessManager
         {
             return false;
         }
+    }
+
+    internal static bool PortIsOpen(string host, int port)
+    {
+        return IsPortOpen(host, port);
+    }
+
+    private static void CleanupStaleRuntimeProcess(string expectedServerPath)
+    {
+        var state = RevitMcpRuntime.LoadRuntimeState();
+        if (state.ServerProcessId <= 0)
+        {
+            return;
+        }
+
+        var process = GetProcessById(state.ServerProcessId);
+        if (process is null)
+        {
+            ClearServerRuntimeState();
+            return;
+        }
+
+        using (process)
+        {
+            var processPath = SafeProcessPath(process);
+            if (!SamePath(processPath, expectedServerPath))
+            {
+                return;
+            }
+
+            var httpOpen = IsPortOpen("127.0.0.1", RevitMcpRuntime.HttpPort);
+            var wsOpen = IsPortOpen("127.0.0.1", RevitMcpRuntime.WebSocketPort);
+            if (httpOpen && wsOpen)
+            {
+                return;
+            }
+
+            try
+            {
+                process.Kill();
+                process.WaitForExit(2000);
+                McpLog.Info($"Stopped stale MCP server process PID {state.ServerProcessId}.");
+                ClearServerRuntimeState();
+            }
+            catch (Exception ex)
+            {
+                McpLog.Error($"Could not stop stale MCP server process PID {state.ServerProcessId}.", ex);
+            }
+        }
+    }
+
+    private static void CleanupSiblingServerProcesses(string expectedServerPath, int keepProcessId)
+    {
+        foreach (var process in Process.GetProcessesByName("RevitMcpServer"))
+        {
+            using (process)
+            {
+                if (process.Id == keepProcessId)
+                {
+                    continue;
+                }
+
+                if (!SamePath(SafeProcessPath(process), expectedServerPath))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    process.Kill();
+                    process.WaitForExit(2000);
+                    McpLog.Info($"Stopped orphan RevitMcpServer.exe sibling PID {process.Id}; keeping PID {keepProcessId}.");
+                }
+                catch (Exception ex)
+                {
+                    McpLog.Error($"Could not stop orphan RevitMcpServer.exe sibling PID {process.Id}.", ex);
+                }
+            }
+        }
+    }
+
+    private static bool TryStopRuntimeProcess(int processId, string expectedPath)
+    {
+        if (processId <= 0)
+        {
+            return false;
+        }
+
+        var process = GetProcessById(processId);
+        if (process is null)
+        {
+            return false;
+        }
+
+        using (process)
+        {
+            if (!SamePath(SafeProcessPath(process), expectedPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                process.Kill();
+                process.WaitForExit(3000);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                McpLog.Error($"Could not stop runtime MCP process PID {processId}.", ex);
+                return false;
+            }
+        }
+    }
+
+    private static Process? GetProcessById(int processId)
+    {
+        try
+        {
+            var process = Process.GetProcessById(processId);
+            return process.HasExited ? null : process;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string SafeProcessPath(Process process)
+    {
+        try
+        {
+            return process.MainModule?.FileName ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private static bool SamePath(string left, string right)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            Path.GetFullPath(left).TrimEnd('\\'),
+            Path.GetFullPath(right).TrimEnd('\\'),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ClearServerRuntimeState()
+    {
+        var state = RevitMcpRuntime.LoadRuntimeState();
+        state.ServerProcessId = 0;
+        state.ServerPath = "";
+        state.ServerStartedAt = default;
+        RevitMcpRuntime.SaveRuntimeState(state);
     }
 
     private static string OpenClosed(bool open)

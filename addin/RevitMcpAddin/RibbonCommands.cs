@@ -28,12 +28,53 @@ public sealed class StopMcpCommand : IExternalCommand
 }
 
 [Transaction(TransactionMode.Manual)]
+public sealed class StartPublicUrlCommand : IExternalCommand
+{
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+    {
+        var result = RevitMcpRuntime.NgrokProcess.Start();
+        RevitTaskDialogs.Show("Start Public URL", result.Message);
+        return result.Ok ? Result.Succeeded : Result.Failed;
+    }
+}
+
+[Transaction(TransactionMode.Manual)]
+public sealed class StopPublicUrlCommand : IExternalCommand
+{
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+    {
+        var result = RevitMcpRuntime.NgrokProcess.Stop();
+        RevitTaskDialogs.Show("Stop Public URL", result.Message);
+        return result.Ok ? Result.Succeeded : Result.Failed;
+    }
+}
+
+[Transaction(TransactionMode.Manual)]
 public sealed class CopyLocalUrlCommand : IExternalCommand
 {
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         Clipboard.SetText(RevitMcpRuntime.LocalMcpUrl);
         RevitTaskDialogs.Show("Copy Local URL", $"Copied local MCP URL:{Environment.NewLine}{RevitMcpRuntime.LocalMcpUrl}");
+        return Result.Succeeded;
+    }
+}
+
+[Transaction(TransactionMode.Manual)]
+public sealed class CopyPublicUrlCommand : IExternalCommand
+{
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+    {
+        var settings = RevitMcpRuntime.LoadSettings();
+        var publicUrl = RevitMcpRuntime.BuildPublicMcpUrl(settings);
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            RevitTaskDialogs.Show("Copy Public URL", "Configure your fixed ngrok domain in Settings first.");
+            return Result.Failed;
+        }
+
+        Clipboard.SetText(publicUrl);
+        RevitTaskDialogs.Show("Copy Public URL", $"Copied public MCP URL:{Environment.NewLine}{publicUrl}");
         return Result.Succeeded;
     }
 }
@@ -46,11 +87,12 @@ public sealed class ShowStatusCommand : IExternalCommand
         var settings = RevitMcpRuntime.LoadSettings();
         var publicUrl = string.IsNullOrWhiteSpace(settings.NgrokDomain)
             ? "Not configured"
-            : $"https://{settings.NgrokDomain.Trim().TrimEnd('/')}/mcp";
+            : RevitMcpRuntime.BuildPublicMcpUrl(settings);
 
         RevitTaskDialogs.Show(
             "Revit MCP Status",
             $"{RevitMcpRuntime.McpProcess.Status}{Environment.NewLine}{Environment.NewLine}" +
+            $"{RevitMcpRuntime.NgrokProcess.Status}{Environment.NewLine}{Environment.NewLine}" +
             $"Local URL: {RevitMcpRuntime.LocalMcpUrl}{Environment.NewLine}" +
             $"Public URL: {publicUrl}{Environment.NewLine}" +
             $"Settings: {RevitMcpRuntime.SettingsPath}");

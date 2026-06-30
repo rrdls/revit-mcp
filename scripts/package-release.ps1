@@ -1,5 +1,6 @@
 param(
     [string[]]$RevitVersions = @("2021", "2022", "2023", "2024", "2025", "2026"),
+    [string[]]$RequiredAddinVersions = @("2025"),
     [switch]$SkipPythonExe,
     [switch]$SkipNgrok,
     [switch]$SkipInstaller
@@ -23,10 +24,10 @@ if (!$SkipNgrok) {
 
 & (Join-Path $PSScriptRoot "package-addins.ps1") -RevitVersions $RevitVersions -Configuration Release
 if ($SkipNgrok) {
-    & (Join-Path $PSScriptRoot "check-release-layout.ps1") -PackageRoot $packageRoot -RequireAddin
+    & (Join-Path $PSScriptRoot "check-release-layout.ps1") -PackageRoot $packageRoot -RequireAddin -RequiredAddinVersions $RequiredAddinVersions
 }
 else {
-    & (Join-Path $PSScriptRoot "check-release-layout.ps1") -PackageRoot $packageRoot -RequireAddin -RequireNgrok
+    & (Join-Path $PSScriptRoot "check-release-layout.ps1") -PackageRoot $packageRoot -RequireAddin -RequireNgrok -RequiredAddinVersions $RequiredAddinVersions
 }
 
 if (!$SkipInstaller) {

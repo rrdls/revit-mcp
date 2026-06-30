@@ -1,5 +1,6 @@
 param(
     [string]$PackageRoot = "",
+    [string[]]$RequiredAddinVersions = @(),
     [switch]$RequireAddin,
     [switch]$RequireNgrok
 )
@@ -37,6 +38,16 @@ if ($RequireAddin -and $addinDlls.Count -eq 0) {
     throw "Release layout has no packaged Revit add-in DLLs under $addinsRoot"
 }
 
+foreach ($version in $RequiredAddinVersions) {
+    $addinPath = Join-Path $addinsRoot "$version\RevitMcpAddin.dll"
+    if (!(Test-Path $addinPath)) {
+        throw "Release layout is missing required Revit $version add-in: $addinPath"
+    }
+}
+
 Write-Host "Release layout OK:"
 Write-Host "  $PackageRoot"
 Write-Host "Add-in DLLs found: $($addinDlls.Count)"
+if ($RequiredAddinVersions.Count -gt 0) {
+    Write-Host "Required add-in versions: $($RequiredAddinVersions -join ', ')"
+}

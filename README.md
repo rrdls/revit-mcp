@@ -280,7 +280,7 @@ To skip that download:
 To validate an already-built release layout:
 
 ```powershell
-.\scripts\check-release-layout.ps1 -RequireAddin
+.\scripts\check-release-layout.ps1 -RequireAddin -RequiredAddinVersions 2025
 ```
 
 If Inno Setup 6 is installed, the script finds `ISCC.exe` from `PATH` or the default Windows install folders and also builds:
@@ -300,13 +300,13 @@ gh auth login
 Create a release with the installer:
 
 ```powershell
-gh release create v0.1.0 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.1.0" --notes "Initial release"
+gh release create v0.1.1 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.1.1" --notes "Require Revit 2025 add-in in release package"
 ```
 
 If the tag already exists, upload or replace the installer:
 
 ```powershell
-gh release upload v0.1.0 dist\installer\RevitMcpSetup.exe --clobber
+gh release upload v0.1.1 dist\installer\RevitMcpSetup.exe --clobber
 ```
 
 The Inno script is:

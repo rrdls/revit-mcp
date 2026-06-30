@@ -33,6 +33,14 @@ Build and test each Revit version against that version's own `RevitAPI.dll`.
 run_revit_code(code: string, timeout_seconds: number = 60) -> string
 get_revit_mcp_prompt() -> string
 get_revit_context(timeout_seconds: number = 30) -> string
+init_saved_tool_library(library_path?: string) -> string
+save_revit_tool(...) -> object
+list_saved_revit_tools(library_path?: string) -> object[]
+get_saved_revit_tool(tool_id: string, library_path?: string) -> object
+run_saved_revit_tool(tool_id: string, parameter_values?: object, timeout_seconds: number = 60, library_path?: string) -> string
+delete_saved_revit_tool(tool_id: string, library_path?: string) -> object
+list_revit_code_history(limit: number = 50, library_path?: string) -> object[]
+promote_revit_code_history_to_tool(...) -> object
 ```
 
 `run_revit_code` expects only the body of a generated C# method. Do not send `using` directives, namespace/class declarations, or a `Run` method.
@@ -58,6 +66,78 @@ Document doc = uidoc.Document;
 ```
 
 For version-sensitive API usage, call `get_revit_context()` first and adapt generated code to the returned Revit version.
+
+## Saved Tools
+
+Saved tools turn useful generated C# snippets into reusable, deterministic Revit MCP commands.
+
+The library is filesystem-based so it works with local folders or a Google Drive Desktop synced folder. Configure it in the Revit ribbon under:
+
+```text
+Revit MCP > Settings > Tool library path
+```
+
+The packaged MCP process receives that path through:
+
+```text
+REVIT_MCP_TOOL_LIBRARY
+```
+
+If no path is configured, the default is:
+
+```text
+Documents/Revit MCP
+```
+
+Recommended Google Drive layout:
+
+```text
+Google Drive/
+  Revit MCP/
+    config/
+      workspace.json
+    tools/
+      renumber-sheets/
+        tool.json
+        code.cs
+        README.md
+        versions/
+      create-fire-stair/
+        tool.json
+        code.cs
+        README.md
+        versions/
+    history/
+    runs/
+    trash/
+```
+
+Each tool stores metadata in `tool.json` and the executable method body in `code.cs`.
+
+Example:
+
+```json
+{
+  "id": "renumber-sheets",
+  "name": "Renumber Sheets",
+  "description": "Renumber sheets using a prefix and start number.",
+  "version": "1.0.0",
+  "entrypoint": "code.cs",
+  "parameters": {
+    "prefix": { "type": "string", "default": "ARQ-" },
+    "startNumber": { "type": "integer", "required": true }
+  },
+  "revitVersions": ["2025"],
+  "tags": ["sheets"],
+  "requiresTransaction": true
+}
+```
+
+`run_revit_code` records raw execution history as JSONL under `history/`. This gives the assistant or user a trail of useful snippets that can later be promoted into saved tools with `promote_revit_code_history_to_tool`.
+
+When `run_saved_revit_tool` executes a saved tool, it validates the provided parameters, applies defaults, injects them as C# local variables, records the run under `runs/`, and then sends the final method body through the same Revit bridge used by `run_revit_code`.
+
+The Revit ribbon also includes `Saved Tools`, which lists tools from the configured library, renders parameter inputs from `tool.json`, executes the selected tool in the active Revit document, records the run under `runs/`, copies tool IDs, refreshes the list, and opens the library folder. Tools marked `requiresTransaction: true` show a confirmation prompt before execution.
 
 ## Tutorial Para Usuários Leigos
 
@@ -202,6 +282,48 @@ For local automated Python tests:
 
 ```powershell
 .\scripts\test-python.ps1
+```
+
+### 7. Build This Branch On Windows
+
+Run these from a normal Windows checkout, not from `\\wsl$`.
+
+Check the toolchain:
+
+```powershell
+dotnet --info
+py --version
+```
+
+Run Python tests:
+
+```powershell
+.\scripts\test-python.ps1
+```
+
+Find the installed Revit path:
+
+```powershell
+.\scripts\find-revit.ps1
+```
+
+Build and install the add-in for Revit 2025:
+
+```powershell
+.\scripts\install-addin.ps1 -RevitVersion 2025 -RevitInstallDir "C:\Program Files\Autodesk\Revit 2025"
+```
+
+Then open or restart Revit 2025 and verify:
+
+```text
+Revit MCP > Settings > Tool library path
+Revit MCP > Saved Tools
+```
+
+To package a release that requires the Revit 2025 add-in:
+
+```powershell
+.\scripts\package-release.ps1 -RevitVersions 2025 -RequiredAddinVersions 2025
 ```
 
 To test the Python/WebSocket path without Revit:

@@ -97,6 +97,7 @@ public sealed class McpProcessManager
             startInfo.EnvironmentVariables["REVIT_MCP_HOST"] = "127.0.0.1";
             startInfo.EnvironmentVariables["REVIT_MCP_PORT"] = RevitMcpRuntime.WebSocketPort.ToString();
             startInfo.EnvironmentVariables["REVIT_MCP_TOKEN"] = settings.McpAuthToken;
+            startInfo.EnvironmentVariables["REVIT_MCP_TOOL_LIBRARY"] = settings.ToolLibraryPath;
 
             var process = new Process
             {

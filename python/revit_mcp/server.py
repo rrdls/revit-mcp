@@ -2,11 +2,24 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from .revit_connection import bridge_from_env
+from .saved_tools import (
+    build_runnable_code,
+    delete_tool,
+    ensure_library,
+    list_history,
+    list_tools,
+    load_tool,
+    promote_history_entry,
+    record_history,
+    record_run,
+    save_tool,
+)
 
 logging.basicConfig(level=os.getenv("REVIT_MCP_LOG_LEVEL", "INFO"))
 
@@ -125,12 +138,145 @@ Instead of one huge script that creates walls, floors, rooms, views, sheets, tag
 @mcp.tool(description=RUN_REVIT_CODE_DESCRIPTION)
 def run_revit_code(code: str, timeout_seconds: float = 60) -> str:
     """Execute a C# method-body snippet inside Revit through the loaded Revit MCP add-in."""
-    response = get_bridge().run_code(code, timeout_seconds=timeout_seconds)
+    try:
+        response = get_bridge().run_code(code, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        record_history(code=code, error=str(exc))
+        raise
+
     if response.ok:
-        return response.result or ""
+        result = response.result or ""
+        record_history(code=code, result=result)
+        return result
 
     details = f"\n\n{response.details}" if response.details else ""
-    raise RuntimeError(f"Revit code failed: {response.error or 'Unknown error'}{details}")
+    error = f"Revit code failed: {response.error or 'Unknown error'}{details}"
+    record_history(code=code, error=error)
+    raise RuntimeError(error)
+
+
+@mcp.tool()
+def init_saved_tool_library(library_path: str | None = None) -> str:
+    """Create or validate the local saved-tool library folder structure."""
+    root = ensure_library(library_path)
+    return str(root)
+
+
+@mcp.tool()
+def save_revit_tool(
+    tool_id: str,
+    name: str,
+    description: str,
+    code: str,
+    parameters: dict[str, Any] | None = None,
+    version: str = "1.0.0",
+    tags: list[str] | None = None,
+    revit_versions: list[str] | None = None,
+    requires_transaction: bool | None = None,
+    library_path: str | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Persist a reusable C# Revit automation as a saved tool."""
+    return save_tool(
+        tool_id=tool_id,
+        name=name,
+        description=description,
+        code=code,
+        parameters=parameters,
+        version=version,
+        tags=tags,
+        revit_versions=revit_versions,
+        requires_transaction=requires_transaction,
+        library_root=library_path,
+        overwrite=overwrite,
+    )
+
+
+@mcp.tool()
+def list_saved_revit_tools(library_path: str | None = None) -> list[dict[str, Any]]:
+    """List reusable Revit tools saved in the configured local library."""
+    return list_tools(library_path)
+
+
+@mcp.tool()
+def get_saved_revit_tool(tool_id: str, library_path: str | None = None) -> dict[str, Any]:
+    """Return saved-tool metadata and C# code."""
+    tool = load_tool(tool_id, library_path)
+    return {
+        "metadata": tool.metadata,
+        "code": tool.code,
+        "path": str(tool.root),
+    }
+
+
+@mcp.tool()
+def run_saved_revit_tool(
+    tool_id: str,
+    parameter_values: dict[str, Any] | None = None,
+    timeout_seconds: float = 60,
+    library_path: str | None = None,
+) -> str:
+    """Execute a saved Revit tool by injecting validated parameters into its C# body."""
+    tool = load_tool(tool_id, library_path)
+    parameters = parameter_values or {}
+    code = build_runnable_code(tool, parameters)
+    try:
+        response = get_bridge().run_code(code, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        record_run(tool_id=tool.id, parameters=parameters, error=str(exc), library_root=library_path)
+        raise
+
+    if response.ok:
+        result = response.result or ""
+        record_run(tool_id=tool.id, parameters=parameters, result=result, library_root=library_path)
+        return result
+
+    details = f"\n\n{response.details}" if response.details else ""
+    error = f"Saved Revit tool failed: {response.error or 'Unknown error'}{details}"
+    record_run(tool_id=tool.id, parameters=parameters, error=error, library_root=library_path)
+    raise RuntimeError(error)
+
+
+@mcp.tool()
+def delete_saved_revit_tool(tool_id: str, library_path: str | None = None) -> dict[str, Any]:
+    """Move a saved Revit tool to the library trash folder."""
+    return delete_tool(tool_id, library_path)
+
+
+@mcp.tool()
+def list_revit_code_history(limit: int = 50, library_path: str | None = None) -> list[dict[str, Any]]:
+    """List recent raw run_revit_code history entries that can be promoted to saved tools."""
+    return list_history(limit=limit, library_root=library_path)
+
+
+@mcp.tool()
+def promote_revit_code_history_to_tool(
+    history_id: str,
+    tool_id: str,
+    name: str,
+    description: str,
+    parameters: dict[str, Any] | None = None,
+    version: str = "1.0.0",
+    tags: list[str] | None = None,
+    revit_versions: list[str] | None = None,
+    requires_transaction: bool | None = None,
+    library_path: str | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Create a saved Revit tool from a previous run_revit_code history entry."""
+    return promote_history_entry(
+        history_id=history_id,
+        tool_id=tool_id,
+        name=name,
+        description=description,
+        parameters=parameters,
+        version=version,
+        tags=tags,
+        revit_versions=revit_versions,
+        requires_transaction=requires_transaction,
+        library_root=library_path,
+        overwrite=overwrite,
+    )
 
 
 @mcp.tool()

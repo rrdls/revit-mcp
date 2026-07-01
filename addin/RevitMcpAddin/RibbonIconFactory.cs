@@ -1,5 +1,7 @@
+using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace RevitMcpAddin;
 
@@ -11,7 +13,32 @@ internal static class RibbonIconFactory
     private static readonly Brush Text = new SolidColorBrush(Color.FromRgb(242, 245, 247));
     private static readonly Pen Stroke = new(Text, 2.3);
 
-    public static ImageSource Create(string key)
+    public static ImageSource Create(string key, int size)
+    {
+        return TryLoadEmbeddedPng(key, size) ?? CreateFallback(key);
+    }
+
+    private static ImageSource? TryLoadEmbeddedPng(string key, int size)
+    {
+        var resourceName = $"{typeof(RibbonIconFactory).Namespace}.Assets.Icons.{key}-{size}.png";
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.DecodePixelWidth = size;
+        image.DecodePixelHeight = size;
+        image.StreamSource = stream;
+        image.EndInit();
+        image.Freeze();
+        return image;
+    }
+
+    private static ImageSource CreateFallback(string key)
     {
         var group = new DrawingGroup();
         group.Children.Add(new GeometryDrawing(new SolidColorBrush(Color.FromRgb(23, 29, 35)), null, new RectangleGeometry(new Rect(0, 0, 32, 32), 4, 4)));

@@ -92,8 +92,8 @@ public sealed class App : IExternalApplication
         return new PushButtonData(name, text, assemblyPath, commandName)
         {
             ToolTip = toolTip,
-            Image = RibbonIconFactory.Create(icon),
-            LargeImage = RibbonIconFactory.Create(icon)
+            Image = RibbonIconFactory.Create(icon, 16),
+            LargeImage = RibbonIconFactory.Create(icon, 32)
         };
     }
 }

@@ -1,5 +1,5 @@
 #define MyAppName "Revit MCP"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "Revit MCP"
 #define SourceRoot "..\dist\RevitMcp"
 

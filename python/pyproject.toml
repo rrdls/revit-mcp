@@ -1,6 +1,6 @@
 [project]
 name = "revit-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP server that forwards C# snippets to a Revit add-in over localhost WebSocket."
 requires-python = ">=3.11"
 dependencies = [

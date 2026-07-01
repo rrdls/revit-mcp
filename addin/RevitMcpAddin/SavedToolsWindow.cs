@@ -227,8 +227,10 @@ public sealed class SavedToolsWindow : Window
             return;
         }
 
-        foreach (var (name, parameter) in tool.Parameters)
+        foreach (var entry in tool.Parameters)
         {
+            var name = entry.Key;
+            var parameter = entry.Value;
             if (!CSharpIdentifier.IsMatch(name))
             {
                 _parameterPanel.Children.Add(new WpfTextBlock { Text = $"Invalid parameter name: {name}" });
@@ -320,8 +322,10 @@ public sealed class SavedToolsWindow : Window
     private Dictionary<string, object?> ReadParameterValues(SavedToolSummary tool)
     {
         var values = new Dictionary<string, object?>();
-        foreach (var (name, parameter) in tool.Parameters)
+        foreach (var entry in tool.Parameters)
         {
+            var name = entry.Key;
+            var parameter = entry.Value;
             if (!CSharpIdentifier.IsMatch(name))
             {
                 throw new InvalidOperationException($"Parameter name is not a valid C# identifier: {name}");
@@ -383,8 +387,10 @@ public sealed class SavedToolsWindow : Window
             $"// Saved Revit MCP tool: {tool.Id}",
             "// Parameter variables are injected by the Revit add-in."
         };
-        foreach (var (name, value) in parameters)
+        foreach (var entry in parameters)
         {
+            var name = entry.Key;
+            var value = entry.Value;
             lines.Add($"var {name} = {ToCSharpLiteral(value)};");
         }
 

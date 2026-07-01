@@ -422,13 +422,13 @@ gh auth login
 Create a release with the installer:
 
 ```powershell
-gh release create v0.2.0 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.2.0" --notes "Add saved Revit tools registry and Revit 2025 release package"
+gh release create v0.2.1 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.2.1" --notes "Add Revit 2024 release package and improved ribbon icons"
 ```
 
 If the tag already exists, upload or replace the installer:
 
 ```powershell
-gh release upload v0.2.0 dist\installer\RevitMcpSetup.exe --clobber
+gh release upload v0.2.1 dist\installer\RevitMcpSetup.exe --clobber
 ```
 
 The Inno script is:

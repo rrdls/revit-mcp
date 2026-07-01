@@ -11,6 +11,10 @@ $projectPath = Join-Path $repoRoot "addin\RevitMcpAddin\RevitMcpAddin.csproj"
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $repoRoot "dist\RevitMcp\addins"
 }
+$buildRoot = Join-Path $repoRoot "dist\addin-build"
+if (Test-Path $buildRoot) {
+    Remove-Item -Recurse -Force $buildRoot
+}
 
 foreach ($version in $RevitVersions) {
     $revitInstallDir = "C:\Program Files\Autodesk\Revit $version"
@@ -20,18 +24,18 @@ foreach ($version in $RevitVersions) {
     }
 
     $targetFramework = if ([int]$version -le 2024) { "net48" } else { "net8.0-windows" }
+    $sourceDir = Join-Path $buildRoot $version
 
     dotnet restore $projectPath -p:RevitVersion=$version -p:RevitInstallDir="$revitInstallDir" -p:TargetFramework=$targetFramework
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet restore failed for Revit $version with exit code $LASTEXITCODE"
     }
 
-    dotnet build $projectPath -c $Configuration -f $targetFramework -p:RevitVersion=$version -p:RevitInstallDir="$revitInstallDir" --no-restore
+    dotnet build $projectPath -c $Configuration -f $targetFramework -p:RevitVersion=$version -p:RevitInstallDir="$revitInstallDir" -p:OutputPath="$sourceDir\" --no-restore
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet build failed for Revit $version with exit code $LASTEXITCODE"
     }
 
-    $sourceDir = Join-Path $repoRoot "addin\RevitMcpAddin\bin\$Configuration\$targetFramework"
     $targetDir = Join-Path $OutputRoot $version
     if (Test-Path $targetDir) {
         Remove-Item -Recurse -Force $targetDir

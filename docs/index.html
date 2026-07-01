@@ -34,12 +34,13 @@
           <h1>Revit MCP</h1>
           <p class="lede">
             Conecte assistentes compatíveis com MCP ao Autodesk Revit para consultar o projeto ativo, inspecionar
-            elementos e executar automações C# no contexto correto do Revit.
+            elementos, executar automações C# e transformar snippets aprovados em ferramentas reutilizáveis.
           </p>
           <div class="release-row" aria-label="Ambiente suportado">
             <span>Add-in Revit</span>
             <span>Ribbon integrado</span>
             <span>Automação C#</span>
+            <span>Saved Tools</span>
           </div>
           <div class="hero-actions" id="download">
             <a class="button primary" href="https://github.com/rrdls/revit-mcp/releases" rel="noreferrer">
@@ -67,6 +68,11 @@
             </div>
             <div class="launcher-button">Start MCP</div>
             <div class="launcher-button">Start Public URL</div>
+            <div class="launcher-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              Tool library: Google Drive ready
+            </div>
+            <div class="launcher-button secondary-action">Saved Tools</div>
           </div>
           <pre class="terminal-output">Copy Local URL
 http://127.0.0.1:8000/&lt;mcp-secret&gt;/mcp
@@ -74,7 +80,7 @@ http://127.0.0.1:8000/&lt;mcp-secret&gt;/mcp
 get_revit_context
 {
   "connected": true,
-  "revitVersion": "2024",
+  "revitVersion": "2025",
   "documentTitle": "Projeto.rvt"
 }</pre>
         </div>
@@ -110,6 +116,11 @@ get_revit_context
             <h3>Valide</h3>
             <p>Chame <code>get_revit_context</code> e confirme que o projeto ativo aparece na resposta.</p>
           </article>
+          <article>
+            <span>5</span>
+            <h3>Salve ferramentas</h3>
+            <p>Promova snippets úteis para <code>Saved Tools</code> e rode depois pelo MCP ou pelo Ribbon.</p>
+          </article>
         </div>
       </section>
 
@@ -131,6 +142,46 @@ get_revit_context
             <h3>Execução por ExternalEvent</h3>
             <p>Rode snippets C# no processo do Revit, com transações quando a automação altera o modelo.</p>
           </article>
+          <article>
+            <h3>Saved Tools</h3>
+            <p>Salve automações parametrizadas em uma biblioteca local ou sincronizada por Google Drive Desktop.</p>
+          </article>
+          <article>
+            <h3>Execução determinística</h3>
+            <p>Execute a mesma tool depois pelo cliente MCP ou pela janela <code>Saved Tools</code> no Revit.</p>
+          </article>
+          <article>
+            <h3>Histórico auditável</h3>
+            <p>Registre execuções, resultados e erros para reaproveitar snippets e investigar automações.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="split">
+          <div>
+            <p class="eyebrow">Biblioteca reutilizável</p>
+            <h2>Uma automação aprovada vira comando permanente.</h2>
+            <p class="lede-small">
+              O Revit MCP salva cada tool como uma pasta com metadados, código C# e histórico de versões. A mesma
+              biblioteca pode ficar em <code>Documents/Revit MCP</code> ou numa pasta sincronizada pelo Google Drive.
+            </p>
+          </div>
+          <div class="example-panel">
+            <div class="window-bar">
+              <span></span>
+              <strong>tools/count-walls</strong>
+            </div>
+            <pre class="terminal-output">tool.json
+code.cs
+README.md
+versions/
+
+run_saved_revit_tool
+{
+  "tool_id": "count-walls"
+}</pre>
+          </div>
         </div>
       </section>
 
@@ -147,16 +198,14 @@ get_revit_context
           <div class="example-panel">
             <div class="window-bar">
               <span></span>
-              <strong>run_revit_code</strong>
+              <strong>save_revit_tool</strong>
             </div>
-            <pre class="terminal-output">using (var tx = new Transaction(doc, "Criar parede"))
-{
-    tx.Start();
-    // Revit API: cria ou altera elementos aqui.
-    tx.Commit();
-}
+            <pre class="terminal-output">var wallCount = new FilteredElementCollector(doc)
+    .OfClass(typeof(Wall))
+    .WhereElementIsNotElementType()
+    .Count();
 
-return "Automação concluída.";</pre>
+return "Wall count: " + wallCount;</pre>
           </div>
         </div>
       </section>
@@ -170,6 +219,7 @@ return "Automação concluída.";</pre>
           <ul class="limits">
             <li>O servidor MCP local precisa estar rodando antes das chamadas do cliente MCP.</li>
             <li>Configure <code>ngrok authtoken</code> e <code>ngrok domain</code> uma vez no painel de settings.</li>
+            <li>Configure <code>Tool library path</code> para usar uma pasta local ou sincronizada pelo Google Drive.</li>
             <li>Operações que modificam o modelo devem usar <code>Transaction</code>.</li>
             <li>Snippets devem ser pequenos, objetivos e revisáveis antes de executar alterações amplas.</li>
             <li>A URL pública final fica em <code>https://dominio.ngrok-free.app/&lt;mcp-secret&gt;/mcp</code>.</li>

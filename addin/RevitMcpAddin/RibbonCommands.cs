@@ -101,6 +101,7 @@ public sealed class ShowStatusCommand : IExternalCommand
             $"{RevitMcpRuntime.NgrokProcess.Status}{Environment.NewLine}{Environment.NewLine}" +
             $"Local URL: {RevitMcpRuntime.LocalMcpUrl}{Environment.NewLine}" +
             $"Public URL: {publicUrl}{Environment.NewLine}" +
+            $"Tool library: {settings.ToolLibraryPath}{Environment.NewLine}" +
             $"Settings: {RevitMcpRuntime.SettingsPath}");
         return Result.Succeeded;
     }
@@ -122,6 +123,21 @@ public sealed class SettingsCommand : IExternalCommand
     public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
         var window = new SettingsWindow
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Topmost = true
+        };
+        window.ShowDialog();
+        return Result.Succeeded;
+    }
+}
+
+[Transaction(TransactionMode.Manual)]
+public sealed class SavedToolsCommand : IExternalCommand
+{
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+    {
+        var window = new SavedToolsWindow(commandData.Application)
         {
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
             Topmost = true

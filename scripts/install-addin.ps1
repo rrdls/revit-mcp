@@ -35,7 +35,14 @@ if ([string]::IsNullOrWhiteSpace($TargetFramework)) {
 }
 
 dotnet restore $ProjectPath -p:RevitVersion=$RevitVersion -p:RevitInstallDir="$RevitInstallDir" -p:TargetFramework=$TargetFramework
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet restore failed with exit code $LASTEXITCODE"
+}
+
 dotnet build $ProjectPath -c $Configuration -f $TargetFramework -p:RevitVersion=$RevitVersion -p:RevitInstallDir="$RevitInstallDir" --no-restore
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet build failed with exit code $LASTEXITCODE"
+}
 
 $projectDir = Split-Path -Parent $ProjectPath
 $assemblyPath = Join-Path $projectDir "bin\$Configuration\$TargetFramework\RevitMcpAddin.dll"

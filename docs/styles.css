@@ -259,6 +259,11 @@ code {
   font-weight: 750;
 }
 
+.launcher-button.secondary-action {
+  color: var(--accent);
+  background: transparent;
+}
+
 .terminal-output {
   margin: 0;
   padding: 18px;

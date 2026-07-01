@@ -22,7 +22,14 @@ foreach ($version in $RevitVersions) {
     $targetFramework = if ([int]$version -le 2024) { "net48" } else { "net8.0-windows" }
 
     dotnet restore $projectPath -p:RevitVersion=$version -p:RevitInstallDir="$revitInstallDir" -p:TargetFramework=$targetFramework
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet restore failed for Revit $version with exit code $LASTEXITCODE"
+    }
+
     dotnet build $projectPath -c $Configuration -f $targetFramework -p:RevitVersion=$version -p:RevitInstallDir="$revitInstallDir" --no-restore
+    if ($LASTEXITCODE -ne 0) {
+        throw "dotnet build failed for Revit $version with exit code $LASTEXITCODE"
+    }
 
     $sourceDir = Join-Path $repoRoot "addin\RevitMcpAddin\bin\$Configuration\$targetFramework"
     $targetDir = Join-Path $OutputRoot $version

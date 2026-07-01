@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Diagnostics;
+using System.IO;
 
 namespace RevitMcpAddin;
 
@@ -9,19 +10,21 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _ngrokAuthToken = new();
     private readonly TextBox _ngrokDomain = new();
     private readonly TextBox _mcpAuthToken = new();
+    private readonly TextBox _toolLibraryPath = new();
 
     public SettingsWindow()
     {
         Title = "Revit MCP Settings";
         Width = 560;
-        Height = 330;
+        Height = 390;
         MinWidth = 480;
-        MinHeight = 300;
+        MinHeight = 360;
 
         var settings = RevitMcpRuntime.LoadSettings();
         _ngrokAuthToken.Text = settings.NgrokAuthToken;
         _ngrokDomain.Text = settings.NgrokDomain;
         _mcpAuthToken.Text = settings.McpAuthToken;
+        _toolLibraryPath.Text = settings.ToolLibraryPath;
 
         Content = BuildContent();
     }
@@ -67,18 +70,20 @@ public sealed class SettingsWindow : Window
         AddRow(form, 0, "ngrok authtoken", _ngrokAuthToken);
         AddRow(form, 1, "ngrok domain", _ngrokDomain);
         AddRow(form, 2, "MCP auth token", _mcpAuthToken);
+        AddRow(form, 3, "Tool library path", _toolLibraryPath);
 
-        var tools = new StackPanel
+        var tools = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(0, 16, 0, 0)
         };
         Grid.SetColumn(tools, 1);
-        Grid.SetRow(tools, 3);
+        Grid.SetRow(tools, 4);
 
         tools.Children.Add(ActionButton("Generate secret", (_, _) => GenerateSecret()));
         tools.Children.Add(ActionButton("Copy local URL", (_, _) => CopyLocalUrl()));
         tools.Children.Add(ActionButton("Copy public URL", (_, _) => CopyPublicUrl()));
+        tools.Children.Add(ActionButton("Open tool library", (_, _) => OpenToolLibrary()));
         tools.Children.Add(ActionButton("ngrok dashboard", (_, _) => OpenNgrokDashboard()));
         form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         form.Children.Add(tools);
@@ -90,7 +95,7 @@ public sealed class SettingsWindow : Window
             Margin = new Thickness(0, 18, 0, 0)
         };
         Grid.SetColumnSpan(note, 2);
-        Grid.SetRow(note, 4);
+        Grid.SetRow(note, 5);
         form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         form.Children.Add(note);
 
@@ -128,7 +133,8 @@ public sealed class SettingsWindow : Window
             NgrokDomain = domain,
             McpAuthToken = string.IsNullOrWhiteSpace(_mcpAuthToken.Text)
                 ? Guid.NewGuid().ToString("N")
-                : _mcpAuthToken.Text.Trim()
+                : _mcpAuthToken.Text.Trim(),
+            ToolLibraryPath = EffectiveToolLibraryPath()
         };
 
         RevitMcpRuntime.SaveSettings(settings);
@@ -176,6 +182,17 @@ public sealed class SettingsWindow : Window
         });
     }
 
+    private void OpenToolLibrary()
+    {
+        var path = EffectiveToolLibraryPath();
+        Directory.CreateDirectory(path);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
+    }
+
     private RevitMcpSettings CurrentSettings()
     {
         return new RevitMcpSettings
@@ -184,7 +201,15 @@ public sealed class SettingsWindow : Window
             NgrokDomain = RevitMcpRuntime.NormalizeDomain(_ngrokDomain.Text),
             McpAuthToken = string.IsNullOrWhiteSpace(_mcpAuthToken.Text)
                 ? Guid.NewGuid().ToString("N")
-                : _mcpAuthToken.Text.Trim()
+                : _mcpAuthToken.Text.Trim(),
+            ToolLibraryPath = EffectiveToolLibraryPath()
         };
+    }
+
+    private string EffectiveToolLibraryPath()
+    {
+        return string.IsNullOrWhiteSpace(_toolLibraryPath.Text)
+            ? RevitMcpRuntime.DefaultToolLibraryPath
+            : _toolLibraryPath.Text.Trim();
     }
 }

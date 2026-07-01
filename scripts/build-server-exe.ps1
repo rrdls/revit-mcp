@@ -10,9 +10,11 @@ $venvDir = Join-Path $repoRoot ".venv-build"
 $distDir = Join-Path $repoRoot "dist\RevitMcp\app"
 $workDir = Join-Path $repoRoot "dist\pyinstaller-work"
 
-if (!(Test-Path $venvDir)) {
-    python -m venv $venvDir
+if (Test-Path $venvDir) {
+    Remove-Item -Recurse -Force $venvDir
 }
+
+python -m venv $venvDir
 
 $pythonExe = Join-Path $venvDir "Scripts\python.exe"
 & $pythonExe -m pip install --upgrade pip

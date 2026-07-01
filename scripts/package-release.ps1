@@ -11,6 +11,9 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $packageRoot = Join-Path $repoRoot "dist\RevitMcp"
 
+if (Test-Path $packageRoot) {
+    Remove-Item -Recurse -Force $packageRoot
+}
 New-Item -ItemType Directory -Force -Path $packageRoot | Out-Null
 Remove-Item -Force (Join-Path $packageRoot "app\cloudflared.exe") -ErrorAction SilentlyContinue
 

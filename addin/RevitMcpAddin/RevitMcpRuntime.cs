@@ -30,6 +30,9 @@ public static class RevitMcpRuntime
     public static string SettingsPath => Path.Combine(AppDataDirectory, "settings.json");
     public static string RuntimePath => Path.Combine(AppDataDirectory, "runtime.json");
     public static string NgrokConfigPath => Path.Combine(AppDataDirectory, "ngrok.yml");
+    public static string DefaultToolLibraryPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        "Revit MCP");
 
     public static string LocalMcpUrl
     {
@@ -71,7 +74,13 @@ public static class RevitMcpRuntime
         {
             EnsureSettings();
             var json = File.ReadAllText(SettingsPath);
-            return JsonSerializer.Deserialize<RevitMcpSettings>(json) ?? RevitMcpSettings.CreateDefault();
+            var settings = JsonSerializer.Deserialize<RevitMcpSettings>(json) ?? RevitMcpSettings.CreateDefault();
+            if (string.IsNullOrWhiteSpace(settings.ToolLibraryPath))
+            {
+                settings.ToolLibraryPath = DefaultToolLibraryPath;
+            }
+
+            return settings;
         }
     }
 
@@ -174,6 +183,7 @@ public sealed class RevitMcpSettings
     public string NgrokAuthToken { get; set; } = "";
     public string NgrokDomain { get; set; } = "";
     public string McpAuthToken { get; set; } = "";
+    public string ToolLibraryPath { get; set; } = RevitMcpRuntime.DefaultToolLibraryPath;
 
     public string EffectiveMcpAuthToken
     {
@@ -193,7 +203,8 @@ public sealed class RevitMcpSettings
     {
         return new RevitMcpSettings
         {
-            McpAuthToken = Guid.NewGuid().ToString("N")
+            McpAuthToken = Guid.NewGuid().ToString("N"),
+            ToolLibraryPath = RevitMcpRuntime.DefaultToolLibraryPath
         };
     }
 }

@@ -81,6 +81,7 @@ public sealed class App : IExternalApplication
         panel.AddItem(Button("CopyPublicUrl", "Copy\nPublic URL", "Copy Public URL", "copy", assemblyPath, typeof(CopyPublicUrlCommand)));
         panel.AddItem(Button("Status", "Status", "Status", "status", assemblyPath, typeof(ShowStatusCommand)));
         panel.AddSeparator();
+        panel.AddItem(Button("SavedTools", "Saved\nTools", "Saved Tools", "tools", assemblyPath, typeof(SavedToolsCommand)));
         panel.AddItem(Button("Settings", "Settings", "Settings", "settings", assemblyPath, typeof(SettingsCommand)));
         panel.AddItem(Button("OpenLogs", "Open\nLogs", "Open Logs", "logs", assemblyPath, typeof(OpenLogsCommand)));
     }

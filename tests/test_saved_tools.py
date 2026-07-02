@@ -187,3 +187,59 @@ def test_invalid_parameter_schema_is_rejected(tmp_path: Path) -> None:
             parameters={"value": {"type": "array"}},
             library_root=root,
         )
+
+
+def test_choice_parameter_validates_options_and_injects_value(tmp_path: Path) -> None:
+    root = ensure_library(tmp_path)
+    save_tool(
+        tool_id="choice-tool",
+        name="Choice Tool",
+        description="Uses a choice parameter.",
+        code="return mode;",
+        parameters={
+            "mode": {
+                "type": "choice",
+                "options": [
+                    {"label": "Preview", "value": "preview"},
+                    {"label": "Create", "value": "create"},
+                ],
+                "default": "preview",
+            }
+        },
+        library_root=root,
+    )
+
+    code = build_runnable_code(load_tool("choice-tool", root), {"mode": "create"})
+
+    assert 'var mode = "create";' in code
+
+    with pytest.raises(ValueError, match="must be one of"):
+        build_runnable_code(load_tool("choice-tool", root), {"mode": "delete"})
+
+
+def test_revit_rich_parameters_inject_revit_api_values(tmp_path: Path) -> None:
+    root = ensure_library(tmp_path)
+    save_tool(
+        tool_id="rich-tool",
+        name="Rich Tool",
+        description="Uses Revit element parameters.",
+        code='return "ok";',
+        parameters={
+            "baseLevel": {"type": "level", "required": True},
+            "wallCategory": {"type": "category", "required": True},
+            "selectedElements": {"type": "elements", "required": True},
+        },
+        library_root=root,
+    )
+
+    code = build_runnable_code(
+        load_tool("rich-tool", root),
+        {"baseLevel": 123, "wallCategory": -2000011, "selectedElements": [1, 2]},
+    )
+
+    assert "var baseLevelId = new ElementId(123);" in code
+    assert "var baseLevel = doc.GetElement(baseLevelId);" in code
+    assert "var wallCategoryBuiltInCategory = (BuiltInCategory)(-2000011);" in code
+    assert "var wallCategory = Category.GetCategory(doc, wallCategoryBuiltInCategory);" in code
+    assert "var selectedElementsIds = new List<ElementId>{new ElementId(1), new ElementId(2)};" in code
+    assert "var selectedElements = selectedElementsIds.Select(id => doc.GetElement(id)).Where(x => x != null).ToList();" in code

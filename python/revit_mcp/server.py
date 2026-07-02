@@ -72,6 +72,10 @@ The runtime already imports common namespaces including Autodesk.Revit.DB,
 Autodesk.Revit.UI, System, System.Linq, and System.Collections.Generic.
 Do not redeclare doc/app/uidoc. For reads, return a string. For model changes,
 open and commit a Revit Transaction inside the snippet.
+
+If the user asks for reusable automation, asks to save the behavior for later,
+or the same operation would be useful with different inputs, first validate a
+small snippet with this tool and then persist it with save_revit_tool.
 """
 
 REVIT_MCP_PROMPT = """
@@ -132,6 +136,74 @@ public class Script { ... } // invalid: wrapper already creates the class
 Large-task strategy:
 
 Instead of one huge script that creates walls, floors, rooms, views, sheets, tags, doors, and windows, make several smaller calls. First validate geometry, then add hosted elements, then add documentation objects.
+
+Saved Tools workflow:
+
+Use Saved Tools when the user asks to keep/reuse an automation, when a task is
+likely to be repeated, or when useful C# has been tested successfully. Prefer
+this flow:
+
+1. Prototype and validate the C# method body with `run_revit_code`.
+2. Identify user-changeable inputs and turn them into parameters.
+3. Save the method body with `save_revit_tool`.
+4. List it with `list_saved_revit_tools` or inspect it with `get_saved_revit_tool`.
+5. Execute it later with `run_saved_revit_tool` or from the Revit Saved Tools window.
+
+Saved tool C# rules:
+
+- Save only the same method body format used by `run_revit_code`.
+- Do not include using directives, class declarations, or a Run method.
+- Parameter names must be valid C# identifiers, preferably camelCase.
+- Do not hardcode values that should vary later; make them parameters.
+- If the tool modifies the model, set `requires_transaction` to true and keep the
+  Transaction inside the saved C# body.
+- Use clear tool IDs such as `renumber-sheets` or `create-fire-stair`; IDs must
+  use lowercase letters, numbers, hyphen, or underscore.
+- Include a practical description explaining what the tool does and what inputs mean.
+
+Saved tool parameter schema:
+
+Basic types:
+
+{
+  "prefix": {"type": "string", "default": "ARQ-"},
+  "startNumber": {"type": "integer", "required": true},
+  "scale": {"type": "number", "default": 1.0},
+  "dryRun": {"type": "boolean", "default": true}
+}
+
+Rich UI types:
+
+{
+  "mode": {
+    "type": "choice",
+    "options": [
+      {"label": "Preview only", "value": "preview"},
+      {"label": "Create elements", "value": "create"}
+    ],
+    "default": "preview"
+  },
+  "baseLevel": {"type": "level", "required": true},
+  "wallType": {"type": "wallType", "required": true},
+  "floorType": {"type": "floorType"},
+  "material": {"type": "material"},
+  "category": {"type": "category"},
+  "selectedElement": {"type": "element"},
+  "selectedElements": {"type": "elements"}
+}
+
+For rich Revit fields, the Revit UI resolves the user's selection. Saved tool
+execution injects friendly variables into the C# body:
+
+- `level`, `wallType`, `floorType`, `material`, and `element` parameters inject
+  both `<name>Id` as ElementId and `<name>` as `doc.GetElement(<name>Id)`.
+- `category` parameters inject `<name>BuiltInCategory` and `<name>` as
+  `Category.GetCategory(doc, <name>BuiltInCategory)`.
+- `elements` parameters inject `<name>Ids` and `<name>` as a list of elements.
+
+If a useful snippet is already in history, use
+`list_revit_code_history` then `promote_revit_code_history_to_tool` instead of
+recreating it from scratch.
 """
 
 
@@ -176,7 +248,7 @@ def save_revit_tool(
     library_path: str | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Persist a reusable C# Revit automation as a saved tool."""
+    """Persist a reusable C# Revit automation as a saved tool with optional parameter schema."""
     return save_tool(
         tool_id=tool_id,
         name=name,
@@ -216,7 +288,7 @@ def run_saved_revit_tool(
     timeout_seconds: float = 60,
     library_path: str | None = None,
 ) -> str:
-    """Execute a saved Revit tool by injecting validated parameters into its C# body."""
+    """Execute a saved Revit tool by validating and injecting parameters into its C# body."""
     tool = load_tool(tool_id, library_path)
     parameters = parameter_values or {}
     code = build_runnable_code(tool, parameters)
@@ -245,7 +317,7 @@ def delete_saved_revit_tool(tool_id: str, library_path: str | None = None) -> di
 
 @mcp.tool()
 def list_revit_code_history(limit: int = 50, library_path: str | None = None) -> list[dict[str, Any]]:
-    """List recent raw run_revit_code history entries that can be promoted to saved tools."""
+    """List recent raw run_revit_code history entries, usually before promoting one into a saved tool."""
     return list_history(limit=limit, library_root=library_path)
 
 
@@ -263,7 +335,7 @@ def promote_revit_code_history_to_tool(
     library_path: str | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Create a saved Revit tool from a previous run_revit_code history entry."""
+    """Create a saved Revit tool from a previous useful run_revit_code history entry."""
     return promote_history_entry(
         history_id=history_id,
         tool_id=tool_id,
@@ -281,7 +353,7 @@ def promote_revit_code_history_to_tool(
 
 @mcp.tool()
 def get_revit_mcp_prompt() -> str:
-    """Return the usage prompt/instructions for generating valid run_revit_code snippets."""
+    """Return usage instructions for Revit code generation and Saved Tools workflows."""
     return REVIT_MCP_PROMPT.strip()
 
 

@@ -125,7 +125,15 @@ Example:
   "entrypoint": "code.cs",
   "parameters": {
     "prefix": { "type": "string", "default": "ARQ-" },
-    "startNumber": { "type": "integer", "required": true }
+    "startNumber": { "type": "integer", "required": true },
+    "mode": {
+      "type": "choice",
+      "options": [
+        { "label": "Preview only", "value": "preview" },
+        { "label": "Renumber sheets", "value": "renumber" }
+      ],
+      "default": "preview"
+    }
   },
   "revitVersions": ["2025"],
   "tags": ["sheets"],
@@ -138,6 +146,31 @@ Example:
 When `run_saved_revit_tool` executes a saved tool, it validates the provided parameters, applies defaults, injects them as C# local variables, records the run under `runs/`, and then sends the final method body through the same Revit bridge used by `run_revit_code`.
 
 The Revit ribbon also includes `Saved Tools`, which lists tools from the configured library, renders parameter inputs from `tool.json`, executes the selected tool in the active Revit document, records the run under `runs/`, copies tool IDs, refreshes the list, and opens the library folder. Tools marked `requiresTransaction: true` show a confirmation prompt before execution.
+
+Supported parameter field types:
+
+- `string`: text input.
+- `integer`: text input parsed as an integer.
+- `number`: text input parsed as a floating-point number.
+- `boolean`: checkbox.
+- `choice`: dropdown from a static `options` array.
+- `level`: dropdown populated from levels in the active Revit document.
+- `wallType`: dropdown populated from wall types.
+- `floorType`: dropdown populated from floor types.
+- `material`: dropdown populated from materials.
+- `category`: dropdown populated from Revit categories.
+- `element`: dropdown from the first currently selected Revit element.
+- `elements`: dropdown entry containing all currently selected Revit elements.
+
+For Revit element fields, the selected value is stored as an id and injected into the saved C# body as friendly variables. For example, a `baseLevel` parameter injects `baseLevelId` as an `ElementId` and `baseLevel` as `doc.GetElement(baseLevelId)`. A `category` parameter injects `categoryBuiltInCategory` and `category` from `Category.GetCategory(...)`.
+
+Assistant workflow for reusable automations:
+
+1. Prototype a small method-body snippet with `run_revit_code`.
+2. Convert user-changeable values into saved tool parameters.
+3. Save the tested code with `save_revit_tool`.
+4. Use `list_saved_revit_tools` or `get_saved_revit_tool` to verify it.
+5. Re-run it later with `run_saved_revit_tool` or the Revit `Saved Tools` window.
 
 ## Tutorial Para Usuários Leigos
 

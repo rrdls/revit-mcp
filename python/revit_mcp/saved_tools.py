@@ -14,6 +14,10 @@ SCHEMA_VERSION = 1
 DEFAULT_LIBRARY_NAME = "Revit MCP"
 TOOL_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{1,80}$")
 CS_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SIMPLE_PARAMETER_TYPES = {"any", "string", "integer", "number", "boolean", "choice"}
+REVIT_ELEMENT_PARAMETER_TYPES = {"level", "wallType", "floorType", "material", "element"}
+REVIT_CATEGORY_PARAMETER_TYPES = {"category"}
+SUPPORTED_PARAMETER_TYPES = SIMPLE_PARAMETER_TYPES | REVIT_ELEMENT_PARAMETER_TYPES | REVIT_CATEGORY_PARAMETER_TYPES | {"elements"}
 
 
 @dataclass(frozen=True)
@@ -160,7 +164,8 @@ def delete_tool(tool_id: str, library_root: Path | str | None = None) -> dict[st
 
 
 def build_runnable_code(saved_tool: SavedTool, parameter_values: dict[str, Any] | None = None) -> str:
-    values = resolve_parameter_values(saved_tool.metadata.get("parameters", {}), parameter_values or {})
+    schema = saved_tool.metadata.get("parameters", {})
+    values = resolve_parameter_values(schema, parameter_values or {})
     prelude_lines = [
         f"// Saved Revit MCP tool: {saved_tool.id}",
         "// Parameter variables are injected by run_saved_tool.",
@@ -168,7 +173,8 @@ def build_runnable_code(saved_tool: SavedTool, parameter_values: dict[str, Any] 
     for name, value in values.items():
         if not CS_IDENTIFIER_PATTERN.match(name):
             raise ValueError(f"Parameter name is not a valid C# identifier: {name}")
-        prelude_lines.append(f"var {name} = {_to_csharp_literal(value)};")
+        spec = schema.get(name, {}) if isinstance(schema, dict) else {}
+        prelude_lines.extend(_to_csharp_parameter_lines(name, spec, value))
     prelude = "\n".join(prelude_lines)
     return f"{prelude}\n\n{saved_tool.code.strip()}\n"
 
@@ -329,8 +335,10 @@ def validate_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(spec, dict):
             raise ValueError(f"Parameter spec must be an object: {name}")
         expected = spec.get("type", "any")
-        if expected not in {"any", "string", "integer", "number", "boolean"}:
+        if expected not in SUPPORTED_PARAMETER_TYPES:
             raise ValueError(f"Unsupported parameter type for {name}: {expected}")
+        if expected == "choice":
+            _validate_choice_options(name, spec)
         validated[name] = dict(spec)
     return validated
 
@@ -405,7 +413,77 @@ def _coerce_parameter(name: str, spec: dict[str, Any], value: Any) -> Any:
             if lowered in {"false", "0", "no"}:
                 return False
         raise ValueError(f"Parameter {name} must be a boolean")
+    if expected == "choice":
+        options = _validate_choice_options(name, spec)
+        option_values = [_choice_option_value(option) for option in options]
+        if value in option_values:
+            return value
+        value_as_text = str(value)
+        for option_value in option_values:
+            if str(option_value) == value_as_text:
+                return option_value
+        raise ValueError(f"Parameter {name} must be one of: {', '.join(str(x) for x in option_values)}")
+    if expected in REVIT_ELEMENT_PARAMETER_TYPES | REVIT_CATEGORY_PARAMETER_TYPES:
+        if isinstance(value, bool):
+            raise ValueError(f"Parameter {name} must be a Revit element id")
+        return int(value)
+    if expected == "elements":
+        if not isinstance(value, list):
+            raise ValueError(f"Parameter {name} must be a list of Revit element ids")
+        if any(isinstance(item, bool) for item in value):
+            raise ValueError(f"Parameter {name} must contain only Revit element ids")
+        return [int(item) for item in value]
     raise ValueError(f"Unsupported parameter type for {name}: {expected}")
+
+
+def _validate_choice_options(name: str, spec: dict[str, Any]) -> list[Any]:
+    options = spec.get("options")
+    if not isinstance(options, list) or not options:
+        raise ValueError(f"Parameter {name} with type choice must define a non-empty options array")
+    for option in options:
+        if isinstance(option, dict):
+            if "value" not in option:
+                raise ValueError(f"Choice option for {name} must include value")
+            if "label" in option and not isinstance(option["label"], str):
+                raise ValueError(f"Choice option label for {name} must be a string")
+            _ensure_supported_literal(name, option["value"])
+        else:
+            _ensure_supported_literal(name, option)
+    return options
+
+
+def _choice_option_value(option: Any) -> Any:
+    if isinstance(option, dict):
+        return option["value"]
+    return option
+
+
+def _ensure_supported_literal(name: str, value: Any) -> None:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return
+    raise ValueError(f"Parameter {name} has an unsupported choice value: {value!r}")
+
+
+def _to_csharp_parameter_lines(name: str, spec: dict[str, Any], value: Any) -> list[str]:
+    expected = spec.get("type") if isinstance(spec, dict) else None
+    if expected in REVIT_ELEMENT_PARAMETER_TYPES:
+        return [
+            f"var {name}Id = new ElementId({_to_csharp_literal(value)});",
+            f"var {name} = doc.GetElement({name}Id);",
+        ]
+    if expected in REVIT_CATEGORY_PARAMETER_TYPES:
+        return [
+            f"var {name}BuiltInCategory = (BuiltInCategory)({_to_csharp_literal(value)});",
+            f"var {name} = Category.GetCategory(doc, {name}BuiltInCategory);",
+        ]
+    if expected == "elements":
+        ids_name = f"{name}Ids"
+        literal_ids = ", ".join(f"new ElementId({_to_csharp_literal(item)})" for item in value)
+        return [
+            f"var {ids_name} = new List<ElementId>{{{literal_ids}}};",
+            f"var {name} = {ids_name}.Select(id => doc.GetElement(id)).Where(x => x != null).ToList();",
+        ]
+    return [f"var {name} = {_to_csharp_literal(value)};"]
 
 
 def _to_csharp_literal(value: Any) -> str:

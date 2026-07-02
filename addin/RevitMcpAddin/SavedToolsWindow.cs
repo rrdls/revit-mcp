@@ -4,11 +4,13 @@ using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
+using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using WpfBorder = System.Windows.Controls.Border;
 using WpfButton = System.Windows.Controls.Button;
 using WpfCheckBox = System.Windows.Controls.CheckBox;
 using WpfColumnDefinition = System.Windows.Controls.ColumnDefinition;
+using WpfComboBox = System.Windows.Controls.ComboBox;
 using WpfDock = System.Windows.Controls.Dock;
 using WpfDockPanel = System.Windows.Controls.DockPanel;
 using WpfGrid = System.Windows.Controls.Grid;
@@ -20,6 +22,7 @@ using WpfStackPanel = System.Windows.Controls.StackPanel;
 using WpfTextBlock = System.Windows.Controls.TextBlock;
 using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfWrapPanel = System.Windows.Controls.WrapPanel;
+using WpfScrollViewer = System.Windows.Controls.ScrollViewer;
 
 namespace RevitMcpAddin;
 
@@ -91,15 +94,23 @@ public sealed class SavedToolsWindow : Window
 
         _tools.DisplayMemberPath = nameof(SavedToolSummary.DisplayName);
         _tools.SelectionChanged += (_, _) => ShowSelectedDetails();
-        WpfGrid.SetColumn(_tools, 0);
-        grid.Children.Add(_tools);
+        _tools.SetValue(System.Windows.Controls.ScrollViewer.VerticalScrollBarVisibilityProperty, WpfScrollBarVisibility.Auto);
+        _tools.SetValue(System.Windows.Controls.ScrollViewer.HorizontalScrollBarVisibilityProperty, WpfScrollBarVisibility.Disabled);
+        var toolsBorder = new WpfBorder
+        {
+            BorderThickness = new Thickness(1),
+            BorderBrush = SystemColors.ControlDarkBrush,
+            Child = _tools
+        };
+        WpfGrid.SetColumn(toolsBorder, 0);
+        grid.Children.Add(toolsBorder);
 
         var right = new WpfGrid
         {
             Margin = new Thickness(14, 0, 0, 0)
         };
-        right.RowDefinitions.Add(new WpfRowDefinition { Height = GridLength.Auto });
-        right.RowDefinitions.Add(new WpfRowDefinition { Height = GridLength.Auto });
+        right.RowDefinitions.Add(new WpfRowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        right.RowDefinitions.Add(new WpfRowDefinition { Height = new GridLength(2, GridUnitType.Star) });
         right.RowDefinitions.Add(new WpfRowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
         var detailsBorder = new WpfBorder
@@ -107,7 +118,12 @@ public sealed class SavedToolsWindow : Window
             BorderThickness = new Thickness(1),
             BorderBrush = SystemColors.ControlDarkBrush,
             Padding = new Thickness(12),
-            Child = _details
+            Child = new WpfScrollViewer
+            {
+                VerticalScrollBarVisibility = WpfScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = WpfScrollBarVisibility.Disabled,
+                Content = _details
+            }
         };
         _details.TextWrapping = TextWrapping.Wrap;
         WpfGrid.SetRow(detailsBorder, 0);
@@ -119,15 +135,21 @@ public sealed class SavedToolsWindow : Window
             BorderBrush = SystemColors.ControlDarkBrush,
             Padding = new Thickness(12),
             Margin = new Thickness(0, 12, 0, 0),
-            Child = _parameterPanel
+            Child = new WpfScrollViewer
+            {
+                VerticalScrollBarVisibility = WpfScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = WpfScrollBarVisibility.Disabled,
+                Content = _parameterPanel
+            }
         };
         WpfGrid.SetRow(parameterBorder, 1);
         right.Children.Add(parameterBorder);
 
         _result.IsReadOnly = true;
         _result.AcceptsReturn = true;
-        _result.TextWrapping = TextWrapping.Wrap;
+        _result.TextWrapping = TextWrapping.NoWrap;
         _result.VerticalScrollBarVisibility = WpfScrollBarVisibility.Auto;
+        _result.HorizontalScrollBarVisibility = WpfScrollBarVisibility.Auto;
         _result.Margin = new Thickness(0, 12, 0, 0);
         WpfGrid.SetRow(_result, 2);
         right.Children.Add(_result);
@@ -237,9 +259,10 @@ public sealed class SavedToolsWindow : Window
                 continue;
             }
 
+            var displayName = string.IsNullOrWhiteSpace(parameter.Label) ? name : parameter.Label;
             var label = new WpfTextBlock
             {
-                Text = parameter.Required ? $"{name} *" : name,
+                Text = parameter.Required ? $"{displayName} *" : displayName,
                 Margin = new Thickness(0, 8, 0, 3)
             };
             _parameterPanel.Children.Add(label);
@@ -253,6 +276,30 @@ public sealed class SavedToolsWindow : Window
                 };
                 _parameterInputs[name] = checkBox;
                 _parameterPanel.Children.Add(checkBox);
+            }
+            else if (IsChoiceLikeParameter(parameter.Type))
+            {
+                var comboBox = new WpfComboBox
+                {
+                    Margin = new Thickness(0, 0, 0, 2),
+                    MinWidth = 240
+                };
+                foreach (var option in GetParameterOptions(parameter))
+                {
+                    comboBox.Items.Add(option);
+                    if (ValueMatchesDefault(option.Value, parameter.Default))
+                    {
+                        comboBox.SelectedItem = option;
+                    }
+                }
+
+                if (comboBox.SelectedIndex < 0 && comboBox.Items.Count > 0)
+                {
+                    comboBox.SelectedIndex = 0;
+                }
+
+                _parameterInputs[name] = comboBox;
+                _parameterPanel.Children.Add(comboBox);
             }
             else
             {
@@ -341,6 +388,24 @@ public sealed class SavedToolsWindow : Window
             {
                 value = checkBox.IsChecked == true;
             }
+            else if (input is WpfComboBox comboBox)
+            {
+                if (comboBox.SelectedItem is not ParameterOption option)
+                {
+                    if (parameter.Required)
+                    {
+                        throw new InvalidOperationException($"Missing required parameter: {name}");
+                    }
+
+                    continue;
+                }
+
+                value = option.Value;
+                if (parameter.Type == "elements" && parameter.Required && value is List<int> selectedIds && selectedIds.Count == 0)
+                {
+                    throw new InvalidOperationException($"Missing required selected elements parameter: {name}");
+                }
+            }
             else if (input is WpfTextBox textBox)
             {
                 var text = textBox.Text.Trim();
@@ -391,7 +456,8 @@ public sealed class SavedToolsWindow : Window
         {
             var name = entry.Key;
             var value = entry.Value;
-            lines.Add($"var {name} = {ToCSharpLiteral(value)};");
+            tool.Parameters.TryGetValue(name, out var parameter);
+            lines.AddRange(ToCSharpParameterLines(name, parameter, value));
         }
 
         lines.Add("");
@@ -415,6 +481,139 @@ public sealed class SavedToolsWindow : Window
             timestamp = now
         };
         File.WriteAllText(path, JsonSerializer.Serialize(payload, RevitMcpSettings.JsonOptions));
+    }
+
+    private List<ParameterOption> GetParameterOptions(SavedToolParameter parameter)
+    {
+        if (parameter.Type == "choice")
+        {
+            return StaticChoiceOptions(parameter);
+        }
+
+        var doc = _app.ActiveUIDocument?.Document;
+        if (doc is null)
+        {
+            return new List<ParameterOption>();
+        }
+
+        return parameter.Type switch
+        {
+            "level" => ElementOptions<Level>(doc, x => x.Name),
+            "wallType" => ElementOptions<WallType>(doc, x => x.Name),
+            "floorType" => ElementOptions<FloorType>(doc, x => x.Name),
+            "material" => ElementOptions<Material>(doc, x => x.Name),
+            "category" => CategoryOptions(doc),
+            "element" => SelectedElementOptions(doc, multiple: false),
+            "elements" => SelectedElementOptions(doc, multiple: true),
+            _ => new List<ParameterOption>()
+        };
+    }
+
+    private static List<ParameterOption> StaticChoiceOptions(SavedToolParameter parameter)
+    {
+        var options = new List<ParameterOption>();
+        if (parameter.Options.ValueKind != JsonValueKind.Array)
+        {
+            return options;
+        }
+
+        foreach (var option in parameter.Options.EnumerateArray())
+        {
+            if (option.ValueKind == JsonValueKind.Object && option.TryGetProperty("value", out var valueProperty))
+            {
+                var label = option.TryGetProperty("label", out var labelProperty) && labelProperty.ValueKind == JsonValueKind.String
+                    ? labelProperty.GetString() ?? ValueLabel(valueProperty)
+                    : ValueLabel(valueProperty);
+                options.Add(new ParameterOption(label, JsonValue(valueProperty)));
+            }
+            else
+            {
+                options.Add(new ParameterOption(ValueLabel(option), JsonValue(option)));
+            }
+        }
+
+        return options;
+    }
+
+    private static List<ParameterOption> ElementOptions<T>(Document doc, Func<T, string> label)
+        where T : Element
+    {
+        return new FilteredElementCollector(doc)
+            .OfClass(typeof(T))
+            .Cast<T>()
+            .OrderBy(label)
+            .Select(x => new ParameterOption($"{label(x)} ({x.Id.IntegerValue})", x.Id.IntegerValue))
+            .ToList();
+    }
+
+    private static List<ParameterOption> CategoryOptions(Document doc)
+    {
+        return doc.Settings.Categories
+            .Cast<Category>()
+            .Where(x => x.Id.IntegerValue < 0)
+            .OrderBy(x => x.Name)
+            .Select(x => new ParameterOption($"{x.Name} ({x.Id.IntegerValue})", x.Id.IntegerValue))
+            .ToList();
+    }
+
+    private List<ParameterOption> SelectedElementOptions(Document doc, bool multiple)
+    {
+        var ids = _app.ActiveUIDocument?.Selection.GetElementIds().ToList() ?? new List<ElementId>();
+        if (!multiple)
+        {
+            ids = ids.Take(1).ToList();
+        }
+
+        if (multiple)
+        {
+            var label = ids.Count == 0 ? "No selected elements" : $"{ids.Count} selected element(s)";
+            return new List<ParameterOption> { new(label, ids.Select(x => x.IntegerValue).ToList()) };
+        }
+
+        return ids.Select(id =>
+            {
+                var element = doc.GetElement(id);
+                var label = element is null
+                    ? $"Element {id.IntegerValue}"
+                    : $"{element.GetType().Name}: {element.Name} ({id.IntegerValue})";
+                return new ParameterOption(label, id.IntegerValue);
+            })
+            .ToList();
+    }
+
+    private static bool IsChoiceLikeParameter(string type)
+    {
+        return type is "choice" or "level" or "wallType" or "floorType" or "material" or "category" or "element" or "elements";
+    }
+
+    private static object? JsonValue(JsonElement value)
+    {
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number when value.TryGetInt32(out var integer) => integer,
+            JsonValueKind.Number => value.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => value.ToString()
+        };
+    }
+
+    private static string ValueLabel(JsonElement value)
+    {
+        return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : value.ToString();
+    }
+
+    private static bool ValueMatchesDefault(object? value, JsonElement defaultValue)
+    {
+        if (defaultValue.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return false;
+        }
+
+        var defaultObject = JsonValue(defaultValue);
+        return Equals(value, defaultObject) || string.Equals(Convert.ToString(value, CultureInfo.InvariantCulture), Convert.ToString(defaultObject, CultureInfo.InvariantCulture), StringComparison.Ordinal);
     }
 
     private void CopySelectedId()
@@ -450,6 +649,44 @@ public sealed class SavedToolsWindow : Window
             string text => "\"" + text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n") + "\"",
             _ => throw new InvalidOperationException($"Unsupported parameter value: {value}")
         };
+    }
+
+    private static List<string> ToCSharpParameterLines(string name, SavedToolParameter? parameter, object? value)
+    {
+        if (parameter is not null && IsRevitElementParameter(parameter.Type))
+        {
+            return new List<string>
+            {
+                $"var {name}Id = new ElementId({ToCSharpLiteral(value)});",
+                $"var {name} = doc.GetElement({name}Id);"
+            };
+        }
+
+        if (parameter?.Type == "category")
+        {
+            return new List<string>
+            {
+                $"var {name}BuiltInCategory = (BuiltInCategory)({ToCSharpLiteral(value)});",
+                $"var {name} = Category.GetCategory(doc, {name}BuiltInCategory);"
+            };
+        }
+
+        if (parameter?.Type == "elements" && value is List<int> ids)
+        {
+            var idsLiteral = string.Join(", ", ids.Select(id => $"new ElementId({id.ToString(CultureInfo.InvariantCulture)})"));
+            return new List<string>
+            {
+                $"var {name}Ids = new List<ElementId>{{{idsLiteral}}};",
+                $"var {name} = {name}Ids.Select(id => doc.GetElement(id)).Where(x => x != null).ToList();"
+            };
+        }
+
+        return new List<string> { $"var {name} = {ToCSharpLiteral(value)};" };
+    }
+
+    private static bool IsRevitElementParameter(string type)
+    {
+        return type is "level" or "wallType" or "floorType" or "material" or "element";
     }
 
     private string CurrentLibraryPath()
@@ -495,8 +732,10 @@ public sealed class SavedToolsWindow : Window
     private sealed class SavedToolParameter
     {
         public string Type { get; set; } = "string";
+        public string Label { get; set; } = "";
         public bool Required { get; set; }
         public JsonElement Default { get; set; }
+        public JsonElement Options { get; set; }
 
         public JsonValueKind DefaultValueKind
         {
@@ -516,6 +755,23 @@ public sealed class SavedToolsWindow : Window
                 JsonValueKind.False => "false",
                 _ => ""
             };
+        }
+    }
+
+    private sealed class ParameterOption
+    {
+        public ParameterOption(string label, object? value)
+        {
+            Label = label;
+            Value = value;
+        }
+
+        public string Label { get; }
+        public object? Value { get; }
+
+        public override string ToString()
+        {
+            return Label;
         }
     }
 }

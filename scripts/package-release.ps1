@@ -1,6 +1,6 @@
 param(
     [string[]]$RevitVersions = @("2021", "2022", "2023", "2024", "2025", "2026"),
-    [string[]]$RequiredAddinVersions = @("2025"),
+    [string[]]$RequiredAddinVersions = @("2024", "2025"),
     [switch]$SkipPythonExe,
     [switch]$SkipNgrok,
     [switch]$SkipInstaller

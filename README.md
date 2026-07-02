@@ -353,10 +353,10 @@ Revit MCP > Settings > Tool library path
 Revit MCP > Saved Tools
 ```
 
-To package a release that requires the Revit 2025 add-in:
+To package a release that requires the Revit 2024 and 2025 add-ins:
 
 ```powershell
-.\scripts\package-release.ps1 -RevitVersions 2025 -RequiredAddinVersions 2025
+.\scripts\package-release.ps1 -RevitVersions 2024,2025 -RequiredAddinVersions 2024,2025
 ```
 
 To test the Python/WebSocket path without Revit:
@@ -435,7 +435,7 @@ To skip that download:
 To validate an already-built release layout:
 
 ```powershell
-.\scripts\check-release-layout.ps1 -RequireAddin -RequiredAddinVersions 2025
+.\scripts\check-release-layout.ps1 -RequireAddin -RequiredAddinVersions 2024,2025
 ```
 
 If Inno Setup 6 is installed, the script finds `ISCC.exe` from `PATH` or the default Windows install folders and also builds:
@@ -455,13 +455,13 @@ gh auth login
 Create a release with the installer:
 
 ```powershell
-gh release create v0.2.1 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.2.1" --notes "Add Revit 2024 release package and improved ribbon icons"
+gh release create v0.3.0 dist\installer\RevitMcpSetup.exe --title "Revit MCP v0.3.0" --notes "Add rich Saved Tools fields and validate Revit 2024/2025 packages"
 ```
 
 If the tag already exists, upload or replace the installer:
 
 ```powershell
-gh release upload v0.2.1 dist\installer\RevitMcpSetup.exe --clobber
+gh release upload v0.3.0 dist\installer\RevitMcpSetup.exe --clobber
 ```
 
 The Inno script is:
